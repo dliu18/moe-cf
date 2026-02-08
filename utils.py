@@ -79,7 +79,6 @@ def get_bpr_loss(bpr_model, X_train, X_test,
     U = bpr_model.user_factors.to_numpy()
     V = bpr_model.item_factors.to_numpy()
 
-
     # get positive indices from X_test
     n, m = X_train.shape
     rng = np.random.default_rng(seed=seed)
