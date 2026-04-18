@@ -1,3 +1,6 @@
 data/ml-1m
 __pycache__
 .ipynb_checkpoints
+data/
+results/
+plots/
