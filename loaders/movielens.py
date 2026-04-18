@@ -75,6 +75,7 @@ class movielens:
         for i in range(len(raw_ratings)):
             if np.sum(raw_ratings[i, :] > 0) >= min_ratings:
                 users_to_keep_idx.append(i)
+        print(len(users_to_keep_idx))
         raw_ratings = raw_ratings[users_to_keep_idx]
 
         items_to_keep_idx = []
@@ -130,8 +131,8 @@ class movielens:
         return output_mapping
 
 if __name__ == "__main__":
-    movielens_obj = movielens(min_ratings = 1, min_users = 100, binary=False)
-    label_to_idxs = movielens_obj.get_user_labels("Gender")
+    movielens_obj = movielens(min_ratings = 0, min_users = 200, binary=True)
+    label_to_idxs = movielens_obj.get_user_labels("Age")
     X = movielens_obj.get_X()
     idx_to_metadata = movielens_obj.get_movie_metadata()
 
@@ -142,12 +143,14 @@ if __name__ == "__main__":
         print(f"Size: {len(user_idxs)}")
 
         movie_totals = np.sum(X[user_idxs], axis=0)
-        for movie_idx in np.argsort(-movie_totals)[:15]:
+        for movie_idx in np.argsort(-movie_totals)[:3]:
             metadata = idx_to_metadata[movie_idx]
             print(f"{metadata['title']}\t {movie_totals[movie_idx] / len(user_idxs)}")
         print("\n")
-    # print(np.min(np.sum(X, axis=0)))
-    # print(np.min(np.sum(X, axis=1)))    
+
+    print(np.min(np.sum(X, axis=0)))
+    print(np.min(np.sum(X, axis=1)))  
+    print(np.sum(X))  
 
     # idx_to_genres = movielens_obj.get_genres()
     # assert X.shape[1] == len(idx_to_genres)

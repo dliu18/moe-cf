@@ -1,0 +1,70 @@
+name: full aug
+* base_size -1
+* aug_size -1
+* aug_w_replacement 1
+* aug_trials 1500
+
+
+name: partial_aug
+
+
+name: expected_coef_all_groups_full_aug
+	--model_name="als" 
+	--base_size=-1 
+	--aug_size=-1 
+	--aug_w_replacement=0 
+	--aug_trials=500 \
+	--n_aug=-1 
+	--test_all_p=1
+
+
+name: expected_coef_filter_groups_full_aug
+	--model_name="als" 
+	--base_size=-1 
+	--aug_size=-1 
+	--aug_w_replacement=0 
+	--aug_trials=500 \
+	--n_aug=-1 
+	--test_all_p=1
+
+name: expected_coef_all_groups_partial_aug_test_all
+	--model_name="als" 
+	--base_size=-1 
+	--aug_size=-1 
+	--aug_w_replacement=0 
+	--aug_trials=500 
+	--filter_groups=0 
+	--n_aug=1000 
+	--test_all_p=1
+
+name: expected_coef_filter_groups_partial_aug_test_all
+	--model_name="als" 
+	--base_size=-1 
+	--aug_size=-1 
+	--aug_w_replacement=0 
+	--aug_trials=1000 
+	--filter_groups=1
+	--n_aug=1000 
+	--test_all_p=1
+
+
+
+python brute_force_mixing.py \
+	--model_name="als" --base_size=-1 --aug_size=-1 --aug_w_replacement=0 --aug_trials=500 \
+	--exp_name expected_coef_all_groups_full_aug  --filter_groups=0 --n_aug=-1 --test_all_p=1
+
+python brute_force_mixing.py \
+	--model_name="als" --base_size=-1 --aug_size=-1 --aug_w_replacement=0 --aug_trials=500 \
+	--exp_name expected_coef_all_groups_partial_aug_test_all  --filter_groups=0 --n_aug=1000 --test_all_p=1
+
+python brute_force_mixing.py \
+	--model_name="als" --base_size=-1 --aug_size=-1 --aug_w_replacement=0 --aug_trials=500 \
+	--exp_name expected_coef_filter_groups_full_aug  --filter_groups=1 --n_aug=-1 --test_all_p=1
+
+python brute_force_mixing.py \
+	--model_name="als" --base_size=-1 --aug_size=-1 --aug_w_replacement=0 --aug_trials=1000 \
+	--exp_name expected_coef_filter_groups_partial_aug_test_all  --filter_groups=1 --n_aug=1000 --test_all_p=1
+
+python brute_force_mixing.py \
+	--model_name="als" --base_size=-1 --aug_size=-1 --aug_w_replacement=0 --aug_trials=500 \
+	--exp_name stability  --filter_groups=1 --n_aug=1000 --test_all_p=1

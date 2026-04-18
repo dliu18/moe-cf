@@ -1,0 +1,2 @@
+Runtime
+* Gowalla took 66 min for 500 epochs. i.e. ~5 min for 40 epochs

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
-from implicit.gpu import bpr
+from implicit.gpu import bpr, als
 from implicit.evaluation import ranking_metrics_at_k
 from scipy.sparse import csr_matrix
 
@@ -63,6 +63,26 @@ def get_combined_positives(X_train, X_test):
             excluded_item_idxs = np.concatenate((X_train[i].nonzero()[1], excluded_item_idxs))
         excluded_items_by_user[i] = set(excluded_item_idxs)
     return excluded_items_by_user
+
+def get_als_loss(als_model, X_train, X_test):
+    '''
+    Calculate the l2 reconstruction error on X_test. positive pairs from X_train are excluded.
+
+    X_train and X_test are csr matrices containing interaction data for the first n users in als_model.
+    '''
+    assert X_train.shape == X_test.shape
+    n, m = X_test.shape
+
+    U = als_model.user_factors.to_numpy()
+    U = U[:n]
+
+    V = als_model.item_factors.to_numpy()
+
+    X_hat = U @ V.T
+    assert X_hat.shape == X_test.shape
+
+    mask = X_train.toarray() == 0
+    return np.linalg.norm(mask * (X_hat - X_test.toarray()))
 
 def get_bpr_loss(bpr_model, X_train, X_test, 
     excluded_items_by_user=None,
@@ -126,24 +146,49 @@ if __name__ == "__main__":
 
     excluded_items_by_user = get_combined_positives(X_train + X_val, X_test)
 
-    iters = 100
-    loss_values = []
+    iters = 20
+    training_loss_values = []
+    test_loss_values = []
+    model_name = "als"
 
-    for iter_num in tqdm(range(iters)):
-        bpr_model = bpr.BayesianPersonalizedRanking(factors=64, iterations=iter_num, random_state=0, regularization=0.0)
+    for iter_num in tqdm(range(1, iters)):
+        ranking_model = None
 
-        bpr_model.fit(X_train + X_val, show_progress=False)
+        if model_name == "bpr":
+            ranking_model = bpr.BayesianPersonalizedRanking(factors=64, iterations=iter_num, random_state=0, regularization=0.0)
+        elif model_name == "als":
+            ranking_model = als.AlternatingLeastSquares(factors=32, iterations=iter_num, random_state=0, regularization=0.001)
 
-        loss_values.append(
-            get_bpr_loss(bpr_model, 
-                csr_matrix(X_train.shape), X_train + X_val, 
-                seed=iter_num, sampling_ratio=0.2))
+        ranking_model.fit(X_train + X_val, show_progress=False)
 
+        if model_name == "bpr":
+            training_loss_values.append(
+                get_bpr_loss(ranking_model, 
+                    csr_matrix(X_train.shape), X_train + X_val, 
+                    seed=iter_num, sampling_ratio=0.2))
+            training_loss_values.append(
+                get_bpr_loss(ranking_model, 
+                    X_train + X_val, X_test,
+                    seed=iter_num, sampling_ratio=0.2))
+        elif model_name == "als":
+            training_loss_values.append(
+                get_als_loss(ranking_model, 
+                    csr_matrix(X_train.shape), X_train + X_val))
+            test_loss_values.append(
+                get_als_loss(ranking_model, 
+                    X_train + X_val, X_test))
         # loss_values.append(
         #   get_bpr_loss(bpr_model, X_train + X_val, X_test, seed=iter_num))
 
+    training_loss_values = np.array(training_loss_values)
+    test_loss_values = np.array(test_loss_values)
+
     fig, ax = plt.subplots()
-    ax.plot(range(iters), loss_values)
+    ax.plot(range(1, iters), training_loss_values, label="training loss")
+    ax.plot(range(1, iters), test_loss_values / 0.2, label="test loss")
+
+    ax.legend()
+
     ax.set_xlabel("Iteration")
-    ax.set_ylabel("BPR Loss")
-    fig.savefig("plots/bpr_loss.pdf", bbox_inches="tight")
+    ax.set_ylabel("Loss")
+    fig.savefig("plots/unit_test_loss.pdf", bbox_inches="tight")

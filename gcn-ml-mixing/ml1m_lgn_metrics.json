@@ -1,0 +1,14 @@
+{
+  "final_epoch": 40,
+  "total_epochs": 40,
+  "final_loss": 0.1,
+  "final_precision": {
+    "precision@20": 0.28093543
+  },
+  "final_recall": {
+    "recall@20": 0.23983705
+  },
+  "final_ndcg": {
+    "ndcg@20": 0.36606139
+  }
+}

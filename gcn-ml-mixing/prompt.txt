@@ -1,0 +1,80 @@
+Please create a new folder called gcn-ml-mixing where I will detail a series of scripts.
+
+The first script: 
+
+A python script that uses loaders/movielens.py to read the movielens data. 
+When loading, set: min_ratings = 0, min_users = 0
+Load the movielens data and then perform a user-level 70/10/20 training/val/test split. That is, for each user, select a random 70% of interacted items to be training interactions. Repeat the same for val and test. 
+Assert that all training datasets have the same shape and that all users have at least one interaction in every split.
+Write these splits to LightGCN/data/ml-1m
+
+
+
+I would now like to do data mixing on the ml-1m dataset while training LightGCN.
+
+This is the data mixing setup: 
+* we have group labels for all n users. the users are divided into g groups:
+	* n_g is the number of users in group g
+* Let bpr(g) denote the bpr loss value summed over only users in group g. So the current (vanilla BPR) loss would be: l = \sum_g bpr(g)
+* For data mixing let s be the source group and all other groups are augmentation groups. 
+* Let n_aug be the number of users in the augmentation groups. 
+* Define data mixing parameters alpha_aug and alpha_mix
+	* alpha_aug is a scalar that scales the significance of the augmentation dataset 
+	* alpha_mix is a vector of cardinality g-1. alpha_mix assigns a ratio to each augmentation group where the sum of the ratios is 1.
+* Given group labels, a source group label, and alpha_aug and alpha_mix, data mixing makes the following modifications:
+	* training: 
+		* the loss function is: l_mix = bpr(s) + n_aug * alpha_aug * (\sum_{g\s} (\alpha_g / n_g) bpr(g))
+		* if alpha_aug = 1 and alpha_g = n_g / n_aug then l_mix is the original bpr loss
+	* testing:
+		* ranking metrics are evaluated on _only_ users that belong in the source augmentation group.
+
+Given this setup, perform two tasks: 
+
+Task 1: 
+* Allow the LightGCN implementation to cleanly 
+	* read user group labels from a pickle file 
+	* accept a feature name (e.g. Age), a source group label (e.g. 1-18) and alpha_mix and alpha_aug from the command line 
+	* Incorporate the command line inputs to reflect the data mixing training and evaluation described in the setup.
+
+Task 2: 
+* Write a script in create_ml1m_lightgcn_splits.py that tests various data mixing ratios.
+* The script takes a feature name and a source label as input 
+* For a given feature name, the script ensures that the user labels for that feature are written to a picklefile in LightGCN/data/ml-1m that LightGCN can read.
+
+* Evaluate a few baseline data mixes:
+	* no augmentation: alpha_aug = 0
+	* proportional: alpha_aug = 1 and alpha_g = n_g / n_aug
+	* stratified: alpha_aug = 1 and alpha_g = 1 / (g - 1)
+* For T trials,
+	* sample a set of alpha
+		* sample alpha_aug uniformly from [0.5, 2]
+		* sample alpha_mix uniformly from the simplex.
+	* Call LightGCN passing in the alphas and the feature name and source label.
+	* Train for 40 epochs and use 1 layer for LightGCN
+	* Evaluate on the validation set
+	* output to a csv file the ranking metrics given alpha_aug and alpha_mix. Update the CSV file after every trial.
+
+
+Let me know if you see holes in the logic here.
+
+
+------------
+
+
+Please create a Jupyter notebook in gcn-ml-mixing to analyze the output csv files. 
+
+Before creating the notebook, modify create_ml1m_lightgcn_splits.py so that the csv files are saves in gcn-ml-mixing/validaton. In the notebook assume that is where the csv files are.
+
+The notebook should load the csv files for all source group given a feature name.
+
+The notebook should have a cell for each of these figures. Ensure the figures are suitable for a scientific publicaton, formatting wise. use Roman font.
+
+* for each group, the distribution of alpha_g (mixing ratio) across all trials across all source groups. Each group should have a subplot. 
+
+* ranking metric densities. Create a figure where subplot columns are ranking metrics and rows are source groups. Given a source group and metric, plot a density curve based on the loaded validation metrics. Include colored vertical lines for the no augmentation, proportional, and stratified baselines. 
+
+* closeness of best mixes. For each source group in a single subplot plot two distributions:
+	* Randomly sample a pair of mixing vectors (alpha_mix and alpha_aug concatenated) in the top 10% of performance (validation Recall@k). Calculate the euclidiean distance and plot the distribution of distances. label this distribution ("Top mixes")
+	* Randomly sample a pair of any vectors and plot the analogous distribution. Label this distribution "All".
+
+* alpha_aug. Create a figure where rows are source groups and columns are alpha_aug bins. Have three columns: alpha_aug < 0.8, alpha_aug in [0.8, 1.2] and alpha_aug > 1.2. For each source group and alpha_aug bin, find the alpha_mix vector that yields the top Recall@k performance. Plot the alpha_mix vector as a bar chart where the x-axis is the augmentation group and the y-axis is the alpha_mix value. Have rows share a y-axis.

@@ -1,0 +1,41 @@
+fit 1 layer MLP to validation loss (as a function of the mixing ratios)
+* report R2 for each age group
+* visualize the fit for the three group case 
+* future todo: back out the optimal mixing ratio from the regression
+
+check if the training and test set losses (or other metric) truly have different distributions 
+* can this be abated by having a larger validation set?
+
+Do full aug and partial aug have the same mixing ratios?
+
+
+
+Slides for Feb. 11:
+
+* New loss function for experimentation. The purpose is to elimiante the stochasticisty of mixing ratios. Equivalent to the expected loss when using sampling.
+
+* Question: how do we determine the optimal validation parameters from a few runs? 
+	* Answer: it appears that regression on mixing ratios is sufficient. 
+	* Show three group test and validation plots
+
+* Regression Model
+
+* Fit regression on data mixing ratios
+	* Visualize the first for the three gorup case
+	* List the R2 for each age group
+
+* Correlation matrix from regression for all group case
+
+* Proof of concept bar chart
+
+* Back up proof of concept bar chart
+
+* Write up the setting where stratified might be optimal: 
+	* All groups can be explained via the same latent components 
+	* Do PCA on them
+
+* Next Steps
+	* Test the generalizability of this approach? larger RecSys models
+	* How does the reweighting approach connect back to sampling data points?
+
+Seems to only work when n_aug << n - base_size. perhaps base group performance is less dependent on the mixing ratio when n

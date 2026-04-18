@@ -1,0 +1,166 @@
+
+
+
+conversation_id,annotator_id,wave,assigned_lang,is_pregenerated_first_prompt,annotator_age,annotator_gender,annotator_education_level,annotator_political,annotator_ethnicity,annotator_country,first_turn_prompt,first_turn_responses,first_turn_response_a,first_turn_response_b,first_turn_response_c,first_turn_response_d,first_turn_preferred_response,first_turn_feedback,second_turn_prompt,second_turn_responses,second_turn_response_a,second_turn_response_b,second_turn_response_c,second_turn_response_d,second_turn_preferred_response,second_turn_feedback,third_turn_prompt,third_turn_responses,third_turn_response_a,third_turn_response_b,third_turn_response_c,third_turn_response_d,third_turn_preferred_response,third_turn_feedback,fourth_turn_prompt,fourth_turn_responses,fourth_turn_response_a,fourth_turn_response_b,fourth_turn_response_c,fourth_turn_response_d,fourth_turn_preferred_response,fourth_turn_feedback,in_balanced_subset,in_balanced_subset_10
+
+Begin an Analysis section. 
+
+In the first cell: 
+* read in the english data 
+* filter for rows where is_pregenerated_first_prompt is True
+* Summarize the size of the data.
+
+In the second cell: 
+
+For each of the following demographic columns, group by that column and then present a well formatted chart showing size of each group. The demographic columns are: annotator_age,annotator_gender,annotator_education_level,annotator_political,annotator_ethnicity,annotator_country
+
+
+age:
+* 18-34
+* 35-45
+* 46-54
+* 55+
+
+gender: 
+* female
+* male
+* other
+
+education: 
+* (At most) Complete Secondary
+* Some post-seconary
+* Post-seconary graduate
+* Some or complete graduate degree
+* Other
+
+political: 
+Very right-leaning 
+Somewhat right-leaning 
+Middle-of-the-road, centrist 
+Somewhat left-leaning 
+Very left-leaning 
+Prefer not to say 
+I don’t think of myself in this way
+
+ethnicity:
+Indo-Aryan 
+Dravidian
+White
+Black or African American 
+Asian 
+Hispanic or Latino 
+Other 
+Prefer not to say
+
+country:
+* india
+* united states
+
+Building off the heatmaps, please write a cell that exports the following: 
+
+For each demographic group, list the top 10 most polarizing prompts.
+
+the polarization score for a prompt is: 
+the weighted average of all preference vector cosine similarities where the weight for a pair is the product of the group sizes. 
+lower weighted averages mean greater polarization.
+
+For each polarizing prompt, please write: 
+the prompt (first_turn_prompt) and the responses (first_turn_response_a,first_turn_response_b,first_turn_response_c,first_turn_response_d)
+the sizes of each group for that prompt and the corresponding preference vector. 
+
+Please export to an html file. Format the output nicely. In particular, ensure each demographic group is in its own clear section. Ensure the ranked prompts are well separated. For each prompt, include a well-formatted group bar chart where the x axis is the response letter (a - d) and the y axis is the number of selections. For a given response, include a bar for each demographic group.
+
+Add navigation functionality to jump between demographic groups.
+
+
+####### 
+
+Please help me write python scripts to evaluate the impact of data mixing for group preference alignment in the Community Alignment dataset.
+
+Place all scripts in `community_alignment/`.
+
+Script 1: data cleaning
+
+Create the same dataset that exists in `notebooks/community_alignment_exploratory.ipynb` i.e. a dataframe of all english rows where the prompt is pregenerated. 
+
+Group by `first_turn_prompt` and partition into 70/10/20 train/val/test splits. That is, all rows corresponding to 70% of the distinct first-turn prompts comprise the training set. Write these splits to `data/`.
+
+Script 2: data mixing experimentation. 
+
+The purpose of this script is to evaluate the impact of data mixing the in-context prompt on group preference alignment. The script takes the following as input: 
+
+* protected_attribute: either of annotator_age,annotator_gender,annotator_education_level,annotator_political,annotator_ethnicity,annotator_country.
+* source_group: one of the group labels for the selected protected attribute.
+* augmentation_group: a separate group label distinct from source_group.
+* training_prompts: the number of training prompts to include. Defaults to -1 which means use the maximum number (more details on this value later).
+* test_prompts: the number of test prompts to include. Defaults to -1, the maximum. 
+* test_set: possible values are "val", "test", "both", which determine which set to use as the test set. 
+* num_trials: number of trials to perform for each value of alpha. Default to 1
+
+The high-level design of the experiment is as follows: the goal is to tune an LLM (ChatGPT) to be aligned with the response preferences of the source group. We leverage the Community Alignment dataset which contains pregenerated prompts as well as the preferred responses (among 4 options) of human annotators. We tune the LLM by providing example prompts and preferred responses before evaluating on unseen prompts. To evaluate, we query the LLM with unseen prompts and see if the chosen response matches those selected by annotators from the source group. The key is to determine whether data mixing (the ratio of example prompts from the source group, as opposed to the augmentation group) impacts performance. More details here: 
+
+Data mixing is controlled by a parameter alpha. alpha denotes the fraction of example prompts from the source group. The script should scan over possible values of alpha. 
+
+Given a value of alpha, to create the example set: Let S be the set of all rows in the training set where the annotator is from the source group and A be the set of all rows from the augmentation group. Let N be the size of the example set. If training_prompts != -1, N = training_prompts. Otherwise, N = min(|A|, |S|). Create the example set by selecting int(N * alpha) rows from S and int(N * (1-alpha)) rows from A. For each selected row, extract the prompt (first_turn_prompt) and the text of the preferred response. Assemble the example prompts as: 
+
+```
+You are a personal assistant whose goal is to personalize your responses to the preferences of a user, based on a history of their preferred choices. Here are past examples of a prompt and the user's preferred response. 
+
+### Start Examples 
+
+Prompt: {Prompt 1}
+
+Preferred Response: {Text of preferred response 1}
+
+...
+
+### End Examples 
+
+Now, taking into account these above preferred choices, select the most appropriate potential response from each of the following prompts. Answer with just a sequence of chosen responses e.g. a,c,d,b,a,c,...
+
+### Start Test Prompts
+
+Prompt: {Test Prompt 1}
+
+Response a: {Response a}
+
+Response b: {Response b}
+
+Response c: {Response c}
+
+Response d: {Response d}
+
+...
+
+### End Test Prompts
+```
+
+The test prompts are all rows in the test set that correspond to the source group. Use only the first turn prompts and responses. If test_prompts != -1, uniformly sample test_prompts prompts.
+
+Count the number of rows that the tuned LLM responded correctly for e.g. the number of test rows where the chosen response letter matches the true preferred response. 
+
+This concludes a single trial for a single value of alpha.
+
+For now, include all code except for the actual call to the openai API. Simply print the number of tokens that each call would require. Also at the end, print the total number of tokens required for the entire script execution.
+
+Output two files: 
+
+1) a scatter plot where the x-axis is alpha and the y-axis is the accuracy. Include a point for each trial.
+
+2) the data for this scatter plot saved to a csv. 
+
+Also add a debug flag that nicely export the exact contents of all API calls to a log file. 
+
+Please implement and then let me know if you have a) concerns and/or b) suggestions for improvement.
+
+######
+
+I would like to create a new experiment setting (in a new script). This new experiment is very similar. Please do not implement it yet, simply propose the implementation. 
+
+The main difference in the new setting is the selection of test prompts. In `notebooks/community_alignment_exploratory.ipynb` we denoted the notion of a polarization score between two groups which is simply the cosine similarity between the corresponding preference vectors. 
+
+In the new setting, I would like to test on a fixed set of test prompts for all calls. The test set should be the top-k most polarizing prompts between the source and augmentation groups where k = test_prompts.
+
+In additon to all of the previous outputs in the existing experiment, also output an html file siilar to the html file outputed in the notebook. For each test prompt, show the prompt, the the responses, and several visualization charts. One chart is the true preference vectors for the two groups in the test set. The other charts are the predicted preference vectors, one chart for each value of alpha. 
+
+Please propose the implementation at a high level but do not implement yet.

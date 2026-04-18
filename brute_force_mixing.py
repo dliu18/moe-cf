@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, diags
 
 import pickle
 from tqdm import tqdm
@@ -42,6 +42,8 @@ Assess regression fit in analysis.
 
 EXP_NAME = "default"
 
+UPDATE_P_FREQUENCY = 50
+
 BASE_SIZE = -1 # size of the base group. if -1, the entire group is included.
 AUGMENTATION_SIZE = -1 # size of the augmentation group. if -1, size = n - BASE_SIZE
 AUGMENTATION_SAMPLE_WITH_REPLACEMENT = True
@@ -50,6 +52,7 @@ MODEL_NAME = "" # als or bpr
 
 N_AUG = -1
 FILTER_GROUPS = False
+TEST_ALL = False
 
 SEED = 0
 
@@ -63,7 +66,7 @@ def _parse_args():
 
 	parser.add_argument(
 		"--filter_groups",
-		type=bool
+		type=int
 	)
 
 	parser.add_argument(
@@ -88,7 +91,7 @@ def _parse_args():
 
 	parser.add_argument(
 		"--aug_w_replacement",
-		type=int,
+		type=bool,
 	)
 
 	parser.add_argument(
@@ -96,7 +99,12 @@ def _parse_args():
 		type=int,
 	)
 
-	global EXP_NAME, FILTER_GROUPS, MODEL_NAME, BASE_SIZE, AUGMENTATION_SIZE, N_AUG, AUGMENTATION_SAMPLE_WITH_REPLACEMENT, AUGMENTATION_TRIALS
+	parser.add_argument(
+		"--test_all_p",
+		type=int
+	)
+
+	global EXP_NAME, FILTER_GROUPS, MODEL_NAME, BASE_SIZE, AUGMENTATION_SIZE, N_AUG, AUGMENTATION_SAMPLE_WITH_REPLACEMENT, AUGMENTATION_TRIALS, TEST_ALL
 	args = parser.parse_args()
 	EXP_NAME = args.exp_name
 	BASE_SIZE = args.base_size
@@ -112,7 +120,8 @@ def _parse_args():
 	else:
 		N_AUG = args.n_aug
 
-	FILTER_GROUPS = args.filter_groups
+	FILTER_GROUPS = args.filter_groups > 0
+	TEST_ALL = args.test_all_p > 0
 
 def get_als_user_coefs(label_to_idxs, base_label, p):
 	'''
@@ -124,10 +133,18 @@ def get_als_user_coefs(label_to_idxs, base_label, p):
 	# base group
 	coefs_by_group.append(np.ones(len(label_to_idxs[base_label])))
 
+	n = np.sum([len(idxs) for idxs in label_to_idxs.values()])
+	base_size = len(label_to_idxs[base_label])
+
+	n_aug = N_AUG if N_AUG > 0 else n - base_size
+
 	for label, idxs in label_to_idxs.items():
+		if p[label] == 0:
+			continue
+
 		n_g = len(idxs)
 		p_g = p[label]
-		group_coef = (N_AUG* p_g) / n_g
+		group_coef = (n_aug * p_g) / n_g
 		coefs_by_group.append(
 			group_coef * np.ones(n_g)
 			)
@@ -169,6 +186,9 @@ def construct_mixed_dataset(label_to_idxs, base_label, p, aug_seed=0):
 		idxs = np.array(idxs)
 		num_idxs = int(aug_size * p[label])
 
+		if MODEL_NAME == "als":
+			num_idxs = len(idxs)
+
 		if not AUGMENTATION_SAMPLE_WITH_REPLACEMENT:
 			if label == base_label:
 				idxs = idxs[~np.isin(idxs, np.fromiter(base_idxs, dtype=idxs.dtype))]
@@ -199,14 +219,20 @@ def get_base_group_metrics(X_train_mixed, X_test_mixed, base_size, r, seed=0):
 	
 	ranking_model.fit(X_train_mixed, show_progress=False)
 
-	ranking_metrics = ranking_metrics_at_k(bpr_model, 
+	ranking_metrics = ranking_metrics_at_k(ranking_model, 
 										   X_train_mixed, 
 										   X_test_mixed[:base_size], 
 										   K=20,
 										   show_progress=False)
-	ranking_metrics["test loss"] = utils.get_bpr_loss(bpr_model, 
-		X_train_mixed[:base_size],
-		X_test_mixed[:base_size])
+
+	if MODEL_NAME == "bpr":
+		ranking_metrics["test loss"] = utils.get_bpr_loss(ranking_model, 
+			X_train_mixed[:base_size],
+			X_test_mixed[:base_size])
+	elif MODEL_NAME == "als":
+		ranking_metrics["test loss"] = utils.get_als_loss(ranking_model, 
+			X_train_mixed[:base_size],
+			X_test_mixed[:base_size])
 
 	return ranking_metrics
 
@@ -227,31 +253,43 @@ def random_data_mixing(X_train, X_val, X_test, label_to_idxs, base_label, r=64, 
 	val_metrics, test_metrics = [], []
 
 	best_p = {}
-	lowest_validation_loss = np.inf
+	highest_validation_metric = -np.inf
+
+	# random mix
+	dirichlet = rng.dirichlet(alpha=0.5 * np.ones(g))
+	p = {
+		label: dirichlet[idx] if label != base_label else 0 
+		for idx, label in enumerate(label_to_idxs.keys())
+	}
+	normalize_p(p)
 
 	# validation trials
 	for trial_num in tqdm(range(trials)):
 
-		# random mix
-		dirichlet = rng.dirichlet(alpha=0.5 * np.ones(g))
-		p = {
-			label: dirichlet[idx] if label != base_label else 0 
-			for idx, label in enumerate(label_to_idxs.keys())
-		}
-		normalize_p(p)
+		if trial_num == 3 or trial_num % UPDATE_P_FREQUENCY == 0:
+			# random mix
+			dirichlet = rng.dirichlet(alpha=0.5 * np.ones(g))
+			p = {
+				label: dirichlet[idx] if label != base_label else 0 
+				for idx, label in enumerate(label_to_idxs.keys())
+			}
+			normalize_p(p)
 
 		if trial_num == 0:
 			p = {label: 0.0 for label in label_to_idxs}
-			test_ps.append(p.copy())
 		elif trial_num == 1:
 			p = {label: len(idxs) if label != base_label else 0 for label, idxs in label_to_idxs.items()}
 			normalize_p(p)
-			test_ps.append(p.copy())
 		elif trial_num == 2:
 			p = {label: 1 if label != base_label else 0 for label in label_to_idxs}
 			normalize_p(p)
-			test_ps.append(p.copy())
 
+		if TEST_ALL:
+			test_ps.append(p.copy())
+		else:
+			if trial_num <= 2:
+				test_ps.append(p.copy())
+				
 		reordered_idxs = construct_mixed_dataset(
 			label_to_idxs,
 			base_label,
@@ -262,15 +300,18 @@ def random_data_mixing(X_train, X_val, X_test, label_to_idxs, base_label, r=64, 
 		X_val_mixed = X_val[reordered_idxs]
 
 		###### scale values if neded 
-		user_coefs = get_user_coefs(label_to_idxs, base_label, p)
-		X_train_mixed = np.diag(user_coefs) @ X_train_mixed
+
+		user_coefs = get_als_user_coefs(label_to_idxs, base_label, p)
+		# print(f"num coefs: {len(user_coefs)} num users: {len(reordered_idxs)}")
+
+		X_train_mixed = diags(user_coefs) @ X_train_mixed
 
 		val_ps.append(p.copy()) #verify if this copy is needed
 		ranking_metrics = get_base_group_metrics(X_train_mixed, X_val_mixed, base_size, r, seed=trial_num)
 		val_metrics.append(ranking_metrics)
 
-		if ranking_metrics["test loss"] < lowest_validation_loss:
-			lowest_validation_loss = ranking_metrics["test loss"]
+		if ranking_metrics["precision"] > highest_validation_metric:
+			highest_validation_metric = ranking_metrics["precision"]
 			best_p = p.copy()
 
 	test_ps.append(best_p.copy())
@@ -285,8 +326,8 @@ def random_data_mixing(X_train, X_val, X_test, label_to_idxs, base_label, r=64, 
 		X_test_mixed = X_test[reordered_idxs]
 
 		###### scale values if neded 
-		user_coefs = get_user_coefs(label_to_idxs, base_label, p)
-		X_train_mixed = np.diag(user_coefs) @ X_train_mixed
+		user_coefs = get_als_user_coefs(label_to_idxs, base_label, p)
+		X_train_mixed = diags(user_coefs) @ X_train_mixed
 
 		ranking_metrics = get_base_group_metrics(X_train_mixed, X_test_mixed, base_size, r, seed=SEED)
 		test_metrics.append(ranking_metrics)		
@@ -335,8 +376,6 @@ if __name__ == "__main__":
 
 	# loop over groups
 	for label_idx, label in enumerate(label_to_idxs):
-		if label_idx < 3:
-			continue
 			
 		val_ps, val_metrics, test_ps, test_metrics = random_data_mixing(
 			X_train,

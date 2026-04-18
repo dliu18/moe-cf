@@ -1,0 +1,77 @@
+Create a new notebook in `notebooks` titled `matrix-completion-data-mix-validation.ipynb`.
+
+
+# Data Generation
+
+The first section of the notebook create a ground-truth low rank binary preference matrix, X.
+
+X has n rows (users) and m columns (items). Default to n=200 and m=600
+
+The items are divided into k=4 equal sized classes. The users are also divided into k classes but the sizes of the user groups follow an exponential decay. 
+
+In the ground truth matrix, a user likes an item (entry is 1) iff the user and the item are in the same class. Otherwise, the entry is 0.
+
+Visualize the ground truth matrix in black and white with appropriate labels.
+
+# Sampling Rate
+
+The second section analyzes the impact of the sampling rate on the spectral decomposition error.
+
+Define the error as follows: 
+Let V be the true right singular vectors of X.
+Let V' be the estimated right singular vectors. 
+The error is \| V'V'^T - VV^T \| where \| \| is the spectral norm of the matrix.
+
+Generate the following plot: 
+
+Sweep over sampling rates p (x-axis) beginning at p=1/m.
+
+For a given p, uniformly sample indices of X with probability p. Define X' to be the same shape as X. X'[i,j] = 1 iff (i,j) is sampled and X[i,j] = 1. Otherwise, X'[i,j] = 0. V' are the right singular vectors of X'. Calculate the error and for a given p, repeat for T=1000 trials. 
+
+For each p, calculate the mean error and the variance of the error. Generate a plot with two subplots. 
+
+In the first subplot, the x-axis is p and the y-axis is the mean error. In the second subplot the x-axis is p and the y-axis is the variance of the error.
+
+
+# Optimal Data Mixing
+
+Create a new suection. 
+
+Let the user classes be labeled 1, 2, .. , k. The user classes have corresponding sizes n_1 > n_2 > ... > n_k.
+
+Define a series of k - 1 augmentation budgets. The first budget is n_{k-1} - n_k. The second budget is the first budget + n_{k-2} - n_{k-1}. And, so on.
+
+Under the jth budget where j \in [k-1], enlarge user classes j' | j' > k-j to be of size n_{k-j}. assert that the number of rows added matches the augmentation budget. 
+
+Visualize the sequence of augmented matrices by placing them in side-by-side subplots.
+
+
+For each j \in [k-1], repeat the previous exercise of sweeping p and calculating the mean and variance of the spectral error.
+
+Create the same subplots as before of p on the x-axis and mean and variance of spectral error on the y-axes. Include a line for each augmented matrix with the original matrix being j=0. 
+
+Refactor the previous p-sweep code so that the same method is shared for the augmented matrices. Also do not re-compute the errors for j=0
+
+# Comparing Optimal to Random Data Mixing.
+
+Create a new section.
+
+For a given augmentation budget indexed with j, compare the proposed data mix with random data mixing. 
+
+That is, for a given j,
+
+	fix p = 0.4.
+
+	Let naug_j be the jth augmentation budget. 
+
+	Sample a random mixing vector alpha where alpha has length k and the entries sum to 1.
+
+	For a given alpha, class k in the augmented matrix has size n_k + int(alpha_k * naug_j).
+
+	For T=50 trials determine the average spectral error for the augmented matrix as defined by alpha. 
+
+	Each alpha yiels a single mean error. Sample S = 200 alphas.
+
+	Generate a plot where the x axis the spectral error. the y axis is density. plot the distribution of spectral errors over random alpha. Include a dashed vertical line located at the mean spectral error for the "optimal" data mix, under the corresponding augmentation budget, as defined previously. include a legend.
+
+Plot such a figure for each augmentation budget.
