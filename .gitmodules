@@ -1,0 +1,4 @@
+[submodule "LightGCN"]
+	path = LightGCN
+	url = https://github.com/dliu18/LightGCN.git
+	branch = moe-cf
