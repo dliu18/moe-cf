@@ -100,6 +100,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--recdim", type=int, default=64, help="LightGCN --recdim value.")
     parser.add_argument("--lr", type=float, default=0.001, help="LightGCN --lr value.")
     parser.add_argument("--decay", type=float, default=1e-4, help="LightGCN --decay value.")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="lgn",
+        choices=["lgn", "mf"],
+        help="LightGCN --model value.",
+    )
     parser.add_argument("--epochs", type=int, default=40, help="Training epochs per test run.")
     parser.add_argument("--layer", type=int, default=1, help="LightGCN layer count.")
     parser.add_argument("--seed", type=int, default=2020, help="Base seed for test evaluations.")
@@ -181,7 +188,9 @@ def _ensure_dataset_files(dataset_dir: Path) -> None:
         )
 
 
-def _load_validation_runs(validation_dir: Path, feature_name: str, source_label: str) -> pd.DataFrame:
+def _load_validation_runs(
+    validation_dir: Path, feature_name: str, source_label: str, model_name: str
+) -> pd.DataFrame:
     pattern = f"*__feature-{feature_name}__source-{source_label}.csv"
     files = sorted(validation_dir.glob(pattern))
     if not files:
@@ -196,6 +205,11 @@ def _load_validation_runs(validation_dir: Path, feature_name: str, source_label:
             df = df[df["feature_name"].astype(str) == str(feature_name)]
         if "source_label" in df.columns:
             df = df[df["source_label"].astype(str) == str(source_label)]
+        # Backward compatibility: legacy validation CSVs may not have model column; treat as lgn.
+        row_models = df["model"].astype(str).str.lower() if "model" in df.columns else pd.Series(
+            ["lgn"] * len(df), index=df.index
+        )
+        df = df[row_models == str(model_name).lower()]
         if not df.empty:
             df["validation_csv"] = fp.name
             frames.append(df)
@@ -269,6 +283,7 @@ def _sample_proportional_perturbation_mix(
 def _run_lightgcn_once(
     code_dir: Path,
     labels_pkl: Path,
+    model_name: str,
     feature_name: str,
     source_label: str,
     alpha_aug: float,
@@ -284,6 +299,8 @@ def _run_lightgcn_once(
     cmd = [
         "python",
         "main.py",
+        "--bpr_batch=1_000_000",
+        f"--model={model_name}",
         f"--decay={decay}",
         f"--lr={lr}",
         f"--layer={layer}",
@@ -330,7 +347,7 @@ def _append_csv(csv_path: Path, row: dict) -> None:
 
 
 def _load_completed_test_runs(
-    csv_path: Path, feature_name: str, source_label: str
+    csv_path: Path, feature_name: str, source_label: str, model_name: str
 ) -> set[tuple[str, str, str]]:
     """
     Return completed run keys as:
@@ -353,6 +370,9 @@ def _load_completed_test_runs(
                 continue
             if str(row.get("source_label", "")) != str(source_label):
                 continue
+            row_model = str(row.get("model", "lgn")).strip().lower()
+            if row_model != str(model_name).strip().lower():
+                continue
             rows_matched += 1
             trial_type = str(row.get("trial_type", ""))
             alpha_aug = str(row.get("alpha_aug", ""))
@@ -368,7 +388,7 @@ def _load_completed_test_runs(
 
 
 def _count_existing_proportional_perturbation_rows(
-    csv_path: Path, feature_name: str, source_label: str, perturbation_scale: float
+    csv_path: Path, feature_name: str, source_label: str, model_name: str, perturbation_scale: float
 ) -> int:
     if not csv_path.is_file():
         print(f"No existing test CSV at {csv_path} for perturbation resume. Starting fresh.")
@@ -383,6 +403,9 @@ def _count_existing_proportional_perturbation_rows(
             if str(row.get("feature_name", "")) != str(feature_name):
                 continue
             if str(row.get("source_label", "")) != str(source_label):
+                continue
+            row_model = str(row.get("model", "lgn")).strip().lower()
+            if row_model != str(model_name).strip().lower():
                 continue
             if str(row.get("trial_type", "")) != MODE_PROP_PERTURB:
                 continue
@@ -407,6 +430,7 @@ def main() -> None:
 
     feature_name = str(args.feature_name)
     source_label = str(args.source_label)
+    model_name = str(args.model).lower()
     validation_dir = _resolve(repo_root, args.validation_dir)
     output_dir = _resolve(repo_root, args.output_dir)
     data_dir = _resolve(repo_root, args.data_dir)
@@ -435,6 +459,7 @@ def main() -> None:
             out_csv,
             feature_name=feature_name,
             source_label=source_label,
+            model_name=model_name,
             perturbation_scale=args.perturbation_scale,
         )
         requested = int(args.proportional_perturbation_trials)
@@ -475,6 +500,7 @@ def main() -> None:
             metrics = _run_lightgcn_once(
                 code_dir=code_dir,
                 labels_pkl=labels_pkl,
+                model_name=model_name,
                 feature_name=feature_name,
                 source_label=source_label,
                 alpha_aug=1.0,
@@ -490,6 +516,7 @@ def main() -> None:
 
             row = {
                 "trial_type": MODE_PROP_PERTURB,
+                "model": model_name,
                 "feature_name": feature_name,
                 "source_label": source_label,
                 "alpha_aug": 1.0,
@@ -512,7 +539,7 @@ def main() -> None:
 
         return
 
-    val_df = _load_validation_runs(validation_dir, feature_name, source_label)
+    val_df = _load_validation_runs(validation_dir, feature_name, source_label, model_name=model_name)
     metric_col = _select_metric_column(val_df, args.selection_metric)
 
     non_baseline = val_df[~val_df["trial_type"].isin(BASELINE_TYPES)].copy()
@@ -562,7 +589,7 @@ def main() -> None:
     all_specs.extend(top_specs)
 
     completed = _load_completed_test_runs(
-        out_csv, feature_name=feature_name, source_label=source_label
+        out_csv, feature_name=feature_name, source_label=source_label, model_name=model_name
     )
 
     for i, spec in enumerate(all_specs, start=1):
@@ -582,6 +609,7 @@ def main() -> None:
         metrics = _run_lightgcn_once(
             code_dir=code_dir,
             labels_pkl=labels_pkl,
+            model_name=model_name,
             feature_name=feature_name,
             source_label=source_label,
             alpha_aug=spec["alpha_aug"],
@@ -597,6 +625,7 @@ def main() -> None:
 
         row = {
             "trial_type": spec["trial_type"],
+            "model": model_name,
             "feature_name": feature_name,
             "source_label": source_label,
             "alpha_aug": spec["alpha_aug"],

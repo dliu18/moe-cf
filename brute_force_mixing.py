@@ -55,6 +55,7 @@ FILTER_GROUPS = False
 TEST_ALL = False
 
 SEED = 0
+MIN_USERS = 200
 
 def _parse_args():
 	parser = argparse.ArgumentParser()
@@ -104,13 +105,20 @@ def _parse_args():
 		type=int
 	)
 
-	global EXP_NAME, FILTER_GROUPS, MODEL_NAME, BASE_SIZE, AUGMENTATION_SIZE, N_AUG, AUGMENTATION_SAMPLE_WITH_REPLACEMENT, AUGMENTATION_TRIALS, TEST_ALL
+	parser.add_argument(
+		"--min_users",
+		type=int,
+		default=200,
+	)
+
+	global EXP_NAME, FILTER_GROUPS, MODEL_NAME, BASE_SIZE, AUGMENTATION_SIZE, N_AUG, AUGMENTATION_SAMPLE_WITH_REPLACEMENT, AUGMENTATION_TRIALS, TEST_ALL, MIN_USERS
 	args = parser.parse_args()
 	EXP_NAME = args.exp_name
 	BASE_SIZE = args.base_size
 	AUGMENTATION_SIZE = args.aug_size
 	AUGMENTATION_SAMPLE_WITH_REPLACEMENT = args.aug_w_replacement > 0
 	AUGMENTATION_TRIALS = args.aug_trials
+	MIN_USERS = args.min_users
 
 	assert args.model_name in ["bpr", "als"]
 	MODEL_NAME = args.model_name
@@ -341,7 +349,7 @@ if __name__ == "__main__":
 	# load data
 	movielens_obj = movielens.movielens(
 		min_ratings = 1,
-		min_users = 200,
+		min_users = MIN_USERS,
 		binary=True, 
 		data_dir="data/")
 
@@ -376,7 +384,10 @@ if __name__ == "__main__":
 
 	# loop over groups
 	for label_idx, label in enumerate(label_to_idxs):
-			
+		
+		if label not in ["1", "45"]:
+			continue
+				
 		val_ps, val_metrics, test_ps, test_metrics = random_data_mixing(
 			X_train,
 			X_val,
@@ -393,4 +404,3 @@ if __name__ == "__main__":
 		}
 		with open(F"results/mixing_results_by_group_{EXP_NAME}.pickle", "wb") as pickleFile:
 			pickle.dump(mixing_results_by_group, pickleFile)
-

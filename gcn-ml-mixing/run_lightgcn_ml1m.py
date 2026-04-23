@@ -8,6 +8,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -22,13 +23,19 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run LightGCN training on ml-1m and parse final metrics."
     )
-    parser.add_argument("--decay", type=float, default=1e-4)
-    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--decay", type=float, default=1e-3)
+    parser.add_argument("--lr", type=float, default=1e-1)
     parser.add_argument("--layer", type=int, default=1)
     parser.add_argument("--seed", type=int, default=2020)
     parser.add_argument("--dataset", type=str, default="ml-1m")
     parser.add_argument("--topks", type=str, default="[20]")
     parser.add_argument("--recdim", type=int, default=64)
+    parser.add_argument(
+        "--bpr_batch",
+        type=int,
+        default=1_000_000,
+        help="BPR training mini-batch size passed to LightGCN as --bpr_batch.",
+    )
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument(
         "--lightgcn-code-dir",
@@ -114,6 +121,7 @@ def main() -> None:
     cmd = [
         "python",
         "main.py",
+        # f"--model=mf",
         f"--decay={args.decay}",
         f"--lr={args.lr}",
         f"--layer={args.layer}",
@@ -121,6 +129,7 @@ def main() -> None:
         f"--dataset={args.dataset}",
         f"--topks={args.topks}",
         f"--recdim={args.recdim}",
+        f"--bpr_batch={args.bpr_batch}",
         "--epochs",
         str(args.epochs),
     ]
@@ -130,6 +139,7 @@ def main() -> None:
     print(f"Working directory: {code_dir}")
     print()
 
+    start_time = time.perf_counter()
     result = subprocess.run(
         cmd,
         cwd=str(code_dir),
@@ -137,6 +147,7 @@ def main() -> None:
         text=True,
         check=False,
     )
+    elapsed_seconds = time.perf_counter() - start_time
 
     # Echo training logs for visibility.
     if result.stdout:
@@ -152,6 +163,7 @@ def main() -> None:
 
     print("\nParsed final metrics:")
     print(json.dumps(metrics, indent=2))
+    print(f"\nRuntime (seconds): {elapsed_seconds:.2f}")
     print(f"\nSaved metrics JSON: {output_json}")
 
 
