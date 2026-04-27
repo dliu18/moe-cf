@@ -48,10 +48,9 @@ name: expected_coef_filter_groups_partial_aug_test_all
 	--test_all_p=1
 
 
-
 python brute_force_mixing.py \
 	--model_name="als" --base_size=-1 --aug_size=-1 --aug_w_replacement=0 --aug_trials=500 \
-	--exp_name expected_coef_all_groups_full_aug  --filter_groups=0 --n_aug=-1 --test_all_p=1
+	--exp_name als-0  --filter_groups=0 --n_aug=-1 --test_all_p=1 --min_users=0
 
 python brute_force_mixing.py \
 	--model_name="als" --base_size=-1 --aug_size=-1 --aug_w_replacement=0 --aug_trials=500 \

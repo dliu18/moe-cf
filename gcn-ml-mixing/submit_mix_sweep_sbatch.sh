@@ -11,9 +11,9 @@ if [[ "${MODEL}" != "lgn" && "${MODEL}" != "mf" ]]; then
   exit 1
 fi
 
-labels=(18 25 35 45 56)
+# labels=(1 18 25 35 45 56)
 
-# labels=(1)
+labels=(1)
 
 mkdir -p logs
 
