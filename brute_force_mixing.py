@@ -384,10 +384,7 @@ if __name__ == "__main__":
 
 	# loop over groups
 	for label_idx, label in enumerate(label_to_idxs):
-		
-		if label not in ["1", "45"]:
-			continue
-				
+
 		val_ps, val_metrics, test_ps, test_metrics = random_data_mixing(
 			X_train,
 			X_val,

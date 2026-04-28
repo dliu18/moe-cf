@@ -131,7 +131,7 @@ class movielens:
         return output_mapping
 
 if __name__ == "__main__":
-    movielens_obj = movielens(min_ratings = 0, min_users = 200, binary=True)
+    movielens_obj = movielens(min_ratings = 0, min_users = 700, binary=True)
     label_to_idxs = movielens_obj.get_user_labels("Age")
     X = movielens_obj.get_X()
     idx_to_metadata = movielens_obj.get_movie_metadata()
