@@ -17,4 +17,4 @@ sbatch \
   --output="logs/grid_search_${DATASET}_%j.out" \
   --error="logs/grid_search_${DATASET}_%j.err" \
   --export=ALL,DATASET="${DATASET}",BPR_BATCH="${BPR_BATCH}",TOPKS="${TOPKS}" \
-  --wrap='mamba run -n moe-cf python mixing/hyperparam/grid_search.py --dataset ${DATASET} --bpr-batch ${BPR_BATCH} --topks "${TOPKS}"'
+  --wrap='mamba run -n fair-ranking python mixing/hyperparam/grid_search.py --dataset ${DATASET} --bpr-batch ${BPR_BATCH} --topks "${TOPKS}"'
