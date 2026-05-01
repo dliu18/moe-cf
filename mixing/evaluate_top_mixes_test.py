@@ -45,6 +45,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--top-k", type=int, default=10, help="How many top validation mixes to test.")
     parser.add_argument(
+        "--trials-per-mix",
+        type=int,
+        default=5,
+        help="Number of random-seed trials per alpha_mix.",
+    )
+    parser.add_argument(
         "--mode",
         type=str,
         choices=[MODE_TOPK, MODE_PROP_PERTURB],
@@ -361,13 +367,13 @@ def _append_csv(csv_path: Path, row: dict) -> None:
 
 def _load_completed_test_runs(
     csv_path: Path, feature_name: str, source_label: str, model_name: str
-) -> set[tuple[str, str, str]]:
+) -> set[tuple[str, str, str, int]]:
     """
     Return completed run keys as:
-      (trial_type, alpha_aug_str, alpha_mix_json_sorted)
+      (trial_type, alpha_aug_str, alpha_mix_json_sorted, trial_idx)
     scoped to feature/source.
     """
-    completed: set[tuple[str, str, str]] = set()
+    completed: set[tuple[str, str, str, int]] = set()
     if not csv_path.is_file():
         print(f"No existing test CSV at {csv_path}. Starting fresh.")
         return completed
@@ -390,7 +396,11 @@ def _load_completed_test_runs(
             trial_type = str(row.get("trial_type", ""))
             alpha_aug = str(row.get("alpha_aug", ""))
             alpha_mix_json = str(row.get("alpha_mix_json", ""))
-            completed.add((trial_type, alpha_aug, alpha_mix_json))
+            try:
+                trial_idx = int(row.get("trial_idx", "1"))
+            except (TypeError, ValueError):
+                trial_idx = 1
+            completed.add((trial_type, alpha_aug, alpha_mix_json, trial_idx))
 
     print(
         "Test resume scan summary: "
@@ -401,13 +411,18 @@ def _load_completed_test_runs(
 
 
 def _count_existing_proportional_perturbation_rows(
-    csv_path: Path, feature_name: str, source_label: str, model_name: str, perturbation_scale: float
+    csv_path: Path,
+    feature_name: str,
+    source_label: str,
+    model_name: str,
+    perturbation_scale: float,
+    trials_per_mix: int,
 ) -> int:
     if not csv_path.is_file():
         print(f"No existing test CSV at {csv_path} for perturbation resume. Starting fresh.")
         return 0
 
-    count = 0
+    trial_to_completed_trials: dict[int, set[int]] = {}
     rows_total = 0
     with csv_path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
@@ -427,8 +442,19 @@ def _count_existing_proportional_perturbation_rows(
                 row_scale = float(row_scale_raw)
             except (TypeError, ValueError):
                 continue
-            if np.isclose(row_scale, perturbation_scale, atol=1e-12):
-                count += 1
+            if not np.isclose(row_scale, perturbation_scale, atol=1e-12):
+                continue
+            try:
+                perturbation_trial = int(row.get("perturbation_trial", ""))
+            except (TypeError, ValueError):
+                continue
+            try:
+                trial_idx = int(row.get("trial_idx", "1"))
+            except (TypeError, ValueError):
+                trial_idx = 1
+            trial_to_completed_trials.setdefault(perturbation_trial, set()).add(trial_idx)
+
+    count = sum(1 for v in trial_to_completed_trials.values() if len(v) >= int(trials_per_mix))
 
     print(
         "Perturbation resume scan summary: "
@@ -489,6 +515,7 @@ def main() -> None:
             source_label=source_label,
             model_name=model_name,
             perturbation_scale=args.perturbation_scale,
+            trials_per_mix=args.trials_per_mix,
         )
         requested = int(args.proportional_perturbation_trials)
         if completed_count >= requested:
@@ -512,6 +539,10 @@ def main() -> None:
                 rng=rng,
             )
 
+        completed = _load_completed_test_runs(
+            out_csv, feature_name=feature_name, source_label=source_label, model_name=model_name
+        )
+
         for offset in range(remaining):
             perturbation_trial = completed_count + offset + 1
             alpha_mix = _sample_proportional_perturbation_mix(
@@ -521,50 +552,60 @@ def main() -> None:
             )
             alpha_mix_json = json.dumps(alpha_mix, sort_keys=True)
 
-            print(
-                f"=== Test Eval {offset + 1}/{remaining}: {MODE_PROP_PERTURB} "
-                f"(trial={perturbation_trial}) ==="
-            )
-            metrics = _run_lightgcn_once(
-                code_dir=code_dir,
-                labels_pkl=labels_pkl,
-                dataset_name=dataset_name,
-                model_name=model_name,
-                feature_name=feature_name,
-                source_label=source_label,
-                alpha_aug=1.0,
-                alpha_mix=alpha_mix,
-                topks_str=args.topks,
-                recdim=args.recdim,
-                lr=args.lr,
-                decay=args.decay,
-                epochs=args.epochs,
-                layer=args.layer,
-                seed=args.seed + perturbation_trial,
-            )
+            for trial_idx in range(1, int(args.trials_per_mix) + 1):
+                key = (MODE_PROP_PERTURB, "1.0", alpha_mix_json, trial_idx)
+                if key in completed:
+                    print(
+                        f"=== Test Eval {offset + 1}/{remaining}: {MODE_PROP_PERTURB} "
+                        f"(trial={perturbation_trial}, repeat={trial_idx}) already completed; skipping ==="
+                    )
+                    continue
+                print(
+                    f"=== Test Eval {offset + 1}/{remaining}: {MODE_PROP_PERTURB} "
+                    f"(trial={perturbation_trial}, repeat={trial_idx}/{args.trials_per_mix}) ==="
+                )
+                metrics = _run_lightgcn_once(
+                    code_dir=code_dir,
+                    labels_pkl=labels_pkl,
+                    dataset_name=dataset_name,
+                    model_name=model_name,
+                    feature_name=feature_name,
+                    source_label=source_label,
+                    alpha_aug=1.0,
+                    alpha_mix=alpha_mix,
+                    topks_str=args.topks,
+                    recdim=args.recdim,
+                    lr=args.lr,
+                    decay=args.decay,
+                    epochs=args.epochs,
+                    layer=args.layer,
+                    seed=args.seed + perturbation_trial * 1000 + trial_idx,
+                )
 
-            row = {
-                "trial_type": MODE_PROP_PERTURB,
-                "model": model_name,
-                "feature_name": feature_name,
-                "source_label": source_label,
-                "alpha_aug": 1.0,
-                "alpha_mix_json": alpha_mix_json,
-                "validation_rank": "",
-                "validation_metric_name": "",
-                "validation_metric_value": "",
-                "validation_trial_type": "proportional",
-                "perturbation_scale": float(args.perturbation_scale),
-                "perturbation_trial": perturbation_trial,
-                "final_epoch": metrics["final_epoch"],
-                "final_loss": metrics["final_loss"],
-                "training_time_seconds": metrics["training_time_seconds"],
-            }
-            row.update(metrics["precision"])
-            row.update(metrics["recall"])
-            row.update(metrics["ndcg"])
-            _append_csv(out_csv, row)
-            print(f"Appended: {MODE_PROP_PERTURB} trial={perturbation_trial}")
+                row = {
+                    "trial_type": MODE_PROP_PERTURB,
+                    "model": model_name,
+                    "feature_name": feature_name,
+                    "source_label": source_label,
+                    "alpha_aug": 1.0,
+                    "alpha_mix_json": alpha_mix_json,
+                    "trial_idx": trial_idx,
+                    "validation_rank": "",
+                    "validation_metric_name": "",
+                    "validation_metric_value": "",
+                    "validation_trial_type": "proportional",
+                    "perturbation_scale": float(args.perturbation_scale),
+                    "perturbation_trial": perturbation_trial,
+                    "final_epoch": metrics["final_epoch"],
+                    "final_loss": metrics["final_loss"],
+                    "training_time_seconds": metrics["training_time_seconds"],
+                }
+                row.update(metrics["precision"])
+                row.update(metrics["recall"])
+                row.update(metrics["ndcg"])
+                _append_csv(out_csv, row)
+                completed.add(key)
+                print(f"Appended: {MODE_PROP_PERTURB} trial={perturbation_trial} repeat={trial_idx}")
 
         return
 
@@ -622,60 +663,66 @@ def main() -> None:
     )
 
     for i, spec in enumerate(all_specs, start=1):
-        key = (
+        mix_key = (
             str(spec["trial_type"]),
             str(spec["alpha_aug"]),
             json.dumps(spec["alpha_mix"], sort_keys=True),
         )
-        if key in completed:
+        for trial_idx in range(1, int(args.trials_per_mix) + 1):
+            key = (mix_key[0], mix_key[1], mix_key[2], trial_idx)
+            if key in completed:
+                print(
+                    f"=== Test Eval {i}/{len(all_specs)}: {spec['trial_type']} "
+                    f"(repeat={trial_idx}) already completed; skipping ==="
+                )
+                continue
+
             print(
                 f"=== Test Eval {i}/{len(all_specs)}: {spec['trial_type']} "
-                "(already completed, skipping) ==="
+                f"(repeat={trial_idx}/{args.trials_per_mix}) ==="
             )
-            continue
+            metrics = _run_lightgcn_once(
+                code_dir=code_dir,
+                labels_pkl=labels_pkl,
+                dataset_name=dataset_name,
+                model_name=model_name,
+                feature_name=feature_name,
+                source_label=source_label,
+                alpha_aug=spec["alpha_aug"],
+                alpha_mix=spec["alpha_mix"],
+                topks_str=args.topks,
+                recdim=args.recdim,
+                lr=args.lr,
+                decay=args.decay,
+                epochs=args.epochs,
+                layer=args.layer,
+                seed=args.seed + i * 1000 + trial_idx,
+            )
 
-        print(f"=== Test Eval {i}/{len(all_specs)}: {spec['trial_type']} ===")
-        metrics = _run_lightgcn_once(
-            code_dir=code_dir,
-            labels_pkl=labels_pkl,
-            dataset_name=dataset_name,
-            model_name=model_name,
-            feature_name=feature_name,
-            source_label=source_label,
-            alpha_aug=spec["alpha_aug"],
-            alpha_mix=spec["alpha_mix"],
-            topks_str=args.topks,
-            recdim=args.recdim,
-            lr=args.lr,
-            decay=args.decay,
-            epochs=args.epochs,
-            layer=args.layer,
-            seed=args.seed + i,
-        )
-
-        row = {
-            "trial_type": spec["trial_type"],
-            "model": model_name,
-            "feature_name": feature_name,
-            "source_label": source_label,
-            "alpha_aug": spec["alpha_aug"],
-            "alpha_mix_json": key[2],
-            "validation_rank": spec["validation_rank"],
-            "validation_metric_name": spec["validation_metric_name"],
-            "validation_metric_value": spec["validation_metric_value"],
-            "validation_trial_type": spec["validation_trial_type"],
-            "perturbation_scale": "",
-            "perturbation_trial": "",
-            "final_epoch": metrics["final_epoch"],
-            "final_loss": metrics["final_loss"],
-            "training_time_seconds": metrics["training_time_seconds"],
-        }
-        row.update(metrics["precision"])
-        row.update(metrics["recall"])
-        row.update(metrics["ndcg"])
-        _append_csv(out_csv, row)
-        completed.add(key)
-        print(f"Appended: {spec['trial_type']}")
+            row = {
+                "trial_type": spec["trial_type"],
+                "model": model_name,
+                "feature_name": feature_name,
+                "source_label": source_label,
+                "alpha_aug": spec["alpha_aug"],
+                "alpha_mix_json": mix_key[2],
+                "trial_idx": trial_idx,
+                "validation_rank": spec["validation_rank"],
+                "validation_metric_name": spec["validation_metric_name"],
+                "validation_metric_value": spec["validation_metric_value"],
+                "validation_trial_type": spec["validation_trial_type"],
+                "perturbation_scale": "",
+                "perturbation_trial": "",
+                "final_epoch": metrics["final_epoch"],
+                "final_loss": metrics["final_loss"],
+                "training_time_seconds": metrics["training_time_seconds"],
+            }
+            row.update(metrics["precision"])
+            row.update(metrics["recall"])
+            row.update(metrics["ndcg"])
+            _append_csv(out_csv, row)
+            completed.add(key)
+            print(f"Appended: {spec['trial_type']} repeat={trial_idx}")
 
 
 if __name__ == "__main__":

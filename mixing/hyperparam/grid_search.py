@@ -247,7 +247,7 @@ def main() -> None:
 
     plot_path = args.plot_path
     if plot_path is None:
-        plot_path = repo_root / "mixing" / "hyperparm" / "plots" / f"{args.dataset}.pdf"
+        plot_path = repo_root / "mixing" / "hyperparam" / "plots" / f"{args.dataset}.pdf"
     elif not plot_path.is_absolute():
         plot_path = repo_root / plot_path
 
