@@ -1,0 +1,36 @@
+dataset,model,embedding_dim,feature_name,metric_name,metric_col,source_label,bar_key,bar_label,value,proportional_value,pct_change_vs_proportional
+ml-1m,lgn,64,Age,Precision,precision@20,1,proportional,Proportional,0.23581080999999998,0.23581080999999998,0.0
+ml-1m,lgn,64,Age,Precision,precision@20,18,proportional,Proportional,0.285720762,0.285720762,0.0
+ml-1m,lgn,64,Age,Precision,precision@20,25,proportional,Proportional,0.306903626,0.306903626,0.0
+ml-1m,lgn,64,Age,Precision,precision@20,35,proportional,Proportional,0.27470243,0.27470243,0.0
+ml-1m,lgn,64,Age,Precision,precision@20,45,proportional,Proportional,0.250563636,0.250563636,0.0
+ml-1m,lgn,64,Age,Precision,precision@20,50,proportional,Proportional,0.24493951799999997,0.24493951799999997,0.0
+ml-1m,lgn,64,Age,Precision,precision@20,56,proportional,Proportional,0.186842104,0.186842104,0.0
+ml-1m,lgn,64,Age,Precision,precision@20,1,no_augmentation,No Aug,0.150135136,0.23581080999999998,-36.33237763781906
+ml-1m,lgn,64,Age,Precision,precision@20,18,no_augmentation,No Aug,0.246609248,0.285720762,-13.688719617792428
+ml-1m,lgn,64,Age,Precision,precision@20,25,no_augmentation,No Aug,0.287013356,0.306903626,-6.480949821035999
+ml-1m,lgn,64,Age,Precision,precision@20,35,no_augmentation,No Aug,0.237476948,0.27470243,-13.551202295516646
+ml-1m,lgn,64,Age,Precision,precision@20,45,no_augmentation,No Aug,0.18014545399999998,0.250563636,-28.1039112954124
+ml-1m,lgn,64,Age,Precision,precision@20,50,no_augmentation,No Aug,0.174495968,0.24493951799999997,-28.75956912759172
+ml-1m,lgn,64,Age,Precision,precision@20,56,no_augmentation,No Aug,0.12557894799999997,0.186842104,-32.78873160195201
+ml-1m,lgn,64,Age,Precision,precision@20,1,stratified,Stratified,0.23292793,0.23581080999999998,-1.222539373831071
+ml-1m,lgn,64,Age,Precision,precision@20,18,stratified,Stratified,0.28227561199999995,0.285720762,-1.2057751686942735
+ml-1m,lgn,64,Age,Precision,precision@20,25,stratified,Stratified,0.304680344,0.306903626,-0.7244235035528689
+ml-1m,lgn,64,Age,Precision,precision@20,35,stratified,Stratified,0.271257336,0.27470243,-1.2541185019732013
+ml-1m,lgn,64,Age,Precision,precision@20,45,stratified,Stratified,0.248599998,0.250563636,-0.7836883401548299
+ml-1m,lgn,64,Age,Precision,precision@20,50,stratified,Stratified,0.24310483600000002,0.24493951799999997,-0.7490347066004878
+ml-1m,lgn,64,Age,Precision,precision@20,56,stratified,Stratified,0.18878947399999998,0.186842104,1.042254373243397
+ml-1m,lgn,64,Age,Precision,precision@20,1,top_data_mix,Top Mix,0.237567568,0.23581080999999998,0.7449862031346337
+ml-1m,lgn,64,Age,Precision,precision@20,18,top_data_mix,Top Mix,0.28495013599999997,0.285720762,-0.2697129864157551
+ml-1m,lgn,64,Age,Precision,precision@20,25,top_data_mix,Top Mix,0.306431298,0.306903626,-0.1539010816379101
+ml-1m,lgn,64,Age,Precision,precision@20,35,top_data_mix,Top Mix,0.274375526,0.27470243,-0.11900295166665134
+ml-1m,lgn,64,Age,Precision,precision@20,45,top_data_mix,Top Mix,0.25183636200000004,0.250563636,0.5079452151628489
+ml-1m,lgn,64,Age,Precision,precision@20,50,top_data_mix,Top Mix,0.24695564599999997,0.24493951799999997,0.8231125856955455
+ml-1m,lgn,64,Age,Precision,precision@20,56,top_data_mix,Top Mix,0.187842106,0.186842104,0.5352123416465059
+ml-1m,lgn,64,Age,Precision,precision@20,1,avg_data_mix,Avg Mix,0.23640480469333341,0.23581080999999998,0.25189459861209623
+ml-1m,lgn,64,Age,Precision,precision@20,18,avg_data_mix,Avg Mix,0.2844645515200002,0.285720762,-0.43966370214279266
+ml-1m,lgn,64,Age,Precision,precision@20,25,avg_data_mix,Avg Mix,0.3061944018133333,0.306903626,-0.23109019463546204
+ml-1m,lgn,64,Age,Precision,precision@20,35,avg_data_mix,Avg Mix,0.2747195306666667,0.27470243,0.006225160318645143
+ml-1m,lgn,64,Age,Precision,precision@20,45,avg_data_mix,Avg Mix,0.2492673941066667,0.250563636,-0.5173304131543143
+ml-1m,lgn,64,Age,Precision,precision@20,50,avg_data_mix,Avg Mix,0.24576505389333334,0.24493951799999997,0.3370366285008236
+ml-1m,lgn,64,Age,Precision,precision@20,56,avg_data_mix,Avg Mix,0.18627192986666666,0.186842104,-0.3051636227203644

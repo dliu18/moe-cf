@@ -1,0 +1,11 @@
+dataset,model,embedding_dim,feature_name,metric_name,metric_col,source_label,bar_key,bar_label,value,proportional_value,pct_change_vs_proportional
+ml-1m,lgn,4,Age,NDCG,ndcg@20,45,proportional,Proportional,0.183790918,0.183790918,0.0
+ml-1m,lgn,4,Age,NDCG,ndcg@20,56,proportional,Proportional,0.14667968,0.14667968,0.0
+ml-1m,lgn,4,Age,NDCG,ndcg@20,45,no_augmentation,No Aug,0.17710203600000002,0.183790918,-3.639397459236794
+ml-1m,lgn,4,Age,NDCG,ndcg@20,56,no_augmentation,No Aug,0.134348338,0.14667968,-8.406987252767387
+ml-1m,lgn,4,Age,NDCG,ndcg@20,45,stratified,Stratified,0.187955286,0.183790918,2.2658181619180997
+ml-1m,lgn,4,Age,NDCG,ndcg@20,56,stratified,Stratified,0.148085118,0.14667968,0.9581681661699706
+ml-1m,lgn,4,Age,NDCG,ndcg@20,45,top_data_mix,Top Mix,0.19107253200000002,0.183790918,3.9619008813047114
+ml-1m,lgn,4,Age,NDCG,ndcg@20,56,top_data_mix,Top Mix,0.14982637000000001,0.14667968,2.1452801096920906
+ml-1m,lgn,4,Age,NDCG,ndcg@20,45,avg_data_mix,Avg Mix,0.18633981967333332,0.183790918,1.386848545657368
+ml-1m,lgn,4,Age,NDCG,ndcg@20,56,avg_data_mix,Avg Mix,0.14899257573333333,0.14667968,1.5768344554155829

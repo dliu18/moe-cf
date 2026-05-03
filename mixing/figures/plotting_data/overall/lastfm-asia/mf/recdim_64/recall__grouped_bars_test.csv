@@ -1,0 +1,21 @@
+dataset,model,embedding_dim,feature_name,metric_name,metric_col,source_label,bar_key,bar_label,value,proportional_value,pct_change_vs_proportional
+lastfm-asia,mf,64,Country,Recall,recall@100,0,proportional,Proportional,0.3430952,0.3430952,0.0
+lastfm-asia,mf,64,Country,Recall,recall@100,10,proportional,Proportional,0.385130746,0.385130746,0.0
+lastfm-asia,mf,64,Country,Recall,recall@100,17,proportional,Proportional,0.36726948400000003,0.36726948400000003,0.0
+lastfm-asia,mf,64,Country,Recall,recall@100,3,proportional,Proportional,0.345953126,0.345953126,0.0
+lastfm-asia,mf,64,Country,Recall,recall@100,0,no_augmentation,No Aug,0.290293636,0.3430952,-15.389770535991168
+lastfm-asia,mf,64,Country,Recall,recall@100,10,no_augmentation,No Aug,0.344091154,0.385130746,-10.65601550284952
+lastfm-asia,mf,64,Country,Recall,recall@100,17,no_augmentation,No Aug,0.32571228799999996,0.36726948400000003,-11.315178039676194
+lastfm-asia,mf,64,Country,Recall,recall@100,3,no_augmentation,No Aug,0.23000840400000003,0.345953126,-33.51457561334479
+lastfm-asia,mf,64,Country,Recall,recall@100,0,stratified,Stratified,0.339317502,0.3430952,-1.1010640778419507
+lastfm-asia,mf,64,Country,Recall,recall@100,10,stratified,Stratified,0.38203263,0.385130746,-0.8044322693467946
+lastfm-asia,mf,64,Country,Recall,recall@100,17,stratified,Stratified,0.366174968,0.36726948400000003,-0.2980144138520491
+lastfm-asia,mf,64,Country,Recall,recall@100,3,stratified,Stratified,0.345245106,0.345953126,-0.204657783609672
+lastfm-asia,mf,64,Country,Recall,recall@100,0,top_data_mix,Top Mix,0.335234334,0.3430952,-2.2911617533559103
+lastfm-asia,mf,64,Country,Recall,recall@100,10,top_data_mix,Top Mix,0.380368262,0.385130746,-1.23658888558329
+lastfm-asia,mf,64,Country,Recall,recall@100,17,top_data_mix,Top Mix,0.36109146999999997,0.36726948400000003,-1.6821473792796966
+lastfm-asia,mf,64,Country,Recall,recall@100,3,top_data_mix,Top Mix,0.34167479199999995,0.345953126,-1.2366802547695581
+lastfm-asia,mf,64,Country,Recall,recall@100,0,avg_data_mix,Avg Mix,0.33816994676,0.3430952,-1.4355354548824881
+lastfm-asia,mf,64,Country,Recall,recall@100,10,avg_data_mix,Avg Mix,0.38079248428,0.385130746,-1.12643868739579
+lastfm-asia,mf,64,Country,Recall,recall@100,17,avg_data_mix,Avg Mix,0.36270900716,0.36726948400000003,-1.2417249563810886
+lastfm-asia,mf,64,Country,Recall,recall@100,3,avg_data_mix,Avg Mix,0.34059899228000007,0.345953126,-1.5476471572625512

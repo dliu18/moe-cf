@@ -1,0 +1,11 @@
+dataset,model,embedding_dim,feature_name,metric_name,metric_col,source_label,bar_key,bar_label,value,proportional_value,pct_change_vs_proportional
+lastfm-asia,lgn,4,Country,Recall,recall@100,0,proportional,Proportional,0.23989855399999999,0.23989855399999999,0.0
+lastfm-asia,lgn,4,Country,Recall,recall@100,17,proportional,Proportional,0.26681134,0.26681134,0.0
+lastfm-asia,lgn,4,Country,Recall,recall@100,0,no_augmentation,No Aug,0.255318312,0.23989855399999999,6.427616066414475
+lastfm-asia,lgn,4,Country,Recall,recall@100,17,no_augmentation,No Aug,0.274999672,0.26681134,3.0689595127403373
+lastfm-asia,lgn,4,Country,Recall,recall@100,0,stratified,Stratified,0.23950633400000002,0.23989855399999999,-0.16349410759681818
+lastfm-asia,lgn,4,Country,Recall,recall@100,17,stratified,Stratified,0.26954573800000003,0.26681134,1.0248432469174762
+lastfm-asia,lgn,4,Country,Recall,recall@100,0,top_data_mix,Top Mix,0.24850353800000002,0.23989855399999999,3.586926163798402
+lastfm-asia,lgn,4,Country,Recall,recall@100,17,top_data_mix,Top Mix,0.275890192,0.26681134,3.402723437467077
+lastfm-asia,lgn,4,Country,Recall,recall@100,0,avg_data_mix,Avg Mix,0.2391954560026774,0.23989855399999999,-0.2930813819422185
+lastfm-asia,lgn,4,Country,Recall,recall@100,17,avg_data_mix,Avg Mix,0.26455704814457814,0.26681134,-0.8449010658324583

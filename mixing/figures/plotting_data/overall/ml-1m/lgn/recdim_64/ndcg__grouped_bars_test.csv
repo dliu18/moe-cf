@@ -1,0 +1,36 @@
+dataset,model,embedding_dim,feature_name,metric_name,metric_col,source_label,bar_key,bar_label,value,proportional_value,pct_change_vs_proportional
+ml-1m,lgn,64,Age,NDCG,ndcg@20,1,proportional,Proportional,0.320360596,0.320360596,0.0
+ml-1m,lgn,64,Age,NDCG,ndcg@20,18,proportional,Proportional,0.369775418,0.369775418,0.0
+ml-1m,lgn,64,Age,NDCG,ndcg@20,25,proportional,Proportional,0.386132572,0.386132572,0.0
+ml-1m,lgn,64,Age,NDCG,ndcg@20,35,proportional,Proportional,0.358604232,0.358604232,0.0
+ml-1m,lgn,64,Age,NDCG,ndcg@20,45,proportional,Proportional,0.32957224199999996,0.32957224199999996,0.0
+ml-1m,lgn,64,Age,NDCG,ndcg@20,50,proportional,Proportional,0.32156236600000004,0.32156236600000004,0.0
+ml-1m,lgn,64,Age,NDCG,ndcg@20,56,proportional,Proportional,0.272563786,0.272563786,0.0
+ml-1m,lgn,64,Age,NDCG,ndcg@20,1,no_augmentation,No Aug,0.195328444,0.320360596,-39.02856767066322
+ml-1m,lgn,64,Age,NDCG,ndcg@20,18,no_augmentation,No Aug,0.31223013,0.369775418,-15.562226475530622
+ml-1m,lgn,64,Age,NDCG,ndcg@20,25,no_augmentation,No Aug,0.357294294,0.386132572,-7.468491417502069
+ml-1m,lgn,64,Age,NDCG,ndcg@20,35,no_augmentation,No Aug,0.30364864999999996,0.358604232,-15.324855954293382
+ml-1m,lgn,64,Age,NDCG,ndcg@20,45,no_augmentation,No Aug,0.225805786,0.32957224199999996,-31.485192857959188
+ml-1m,lgn,64,Age,NDCG,ndcg@20,50,no_augmentation,No Aug,0.222712712,0.32156236600000004,-30.74042999173604
+ml-1m,lgn,64,Age,NDCG,ndcg@20,56,no_augmentation,No Aug,0.17630842600000002,0.272563786,-35.31480150484847
+ml-1m,lgn,64,Age,NDCG,ndcg@20,1,stratified,Stratified,0.314229944,0.320360596,-1.9136723044428392
+ml-1m,lgn,64,Age,NDCG,ndcg@20,18,stratified,Stratified,0.363557238,0.369775418,-1.6816098900333112
+ml-1m,lgn,64,Age,NDCG,ndcg@20,25,stratified,Stratified,0.383975486,0.386132572,-0.5586387050507695
+ml-1m,lgn,64,Age,NDCG,ndcg@20,35,stratified,Stratified,0.3526727,0.358604232,-1.6540607920098434
+ml-1m,lgn,64,Age,NDCG,ndcg@20,45,stratified,Stratified,0.325361688,0.32957224199999996,-1.2775815021460386
+ml-1m,lgn,64,Age,NDCG,ndcg@20,50,stratified,Stratified,0.319067948,0.32156236600000004,-0.7757182630009798
+ml-1m,lgn,64,Age,NDCG,ndcg@20,56,stratified,Stratified,0.271906172,0.272563786,-0.24126976281433557
+ml-1m,lgn,64,Age,NDCG,ndcg@20,1,top_data_mix,Top Mix,0.323713888,0.320360596,1.0467242357109385
+ml-1m,lgn,64,Age,NDCG,ndcg@20,18,top_data_mix,Top Mix,0.369855994,0.369775418,0.02179052367402066
+ml-1m,lgn,64,Age,NDCG,ndcg@20,25,top_data_mix,Top Mix,0.387495792,0.386132572,0.353044549683832
+ml-1m,lgn,64,Age,NDCG,ndcg@20,35,top_data_mix,Top Mix,0.359071218,0.358604232,0.13022322614419188
+ml-1m,lgn,64,Age,NDCG,ndcg@20,45,top_data_mix,Top Mix,0.33126251,0.32957224199999996,0.5128672213845153
+ml-1m,lgn,64,Age,NDCG,ndcg@20,50,top_data_mix,Top Mix,0.32444843199999995,0.32156236600000004,0.8975136101591905
+ml-1m,lgn,64,Age,NDCG,ndcg@20,56,top_data_mix,Top Mix,0.27399601,0.272563786,0.5254637899695295
+ml-1m,lgn,64,Age,NDCG,ndcg@20,1,avg_data_mix,Avg Mix,0.3213831649866668,0.320360596,0.3191931215744165
+ml-1m,lgn,64,Age,NDCG,ndcg@20,18,avg_data_mix,Avg Mix,0.36874071458666663,0.369775418,-0.2798194155062501
+ml-1m,lgn,64,Age,NDCG,ndcg@20,25,avg_data_mix,Avg Mix,0.3863230573600001,0.386132572,0.049331595885183
+ml-1m,lgn,64,Age,NDCG,ndcg@20,35,avg_data_mix,Avg Mix,0.35943403527999984,0.358604232,0.23139807229040701
+ml-1m,lgn,64,Age,NDCG,ndcg@20,45,avg_data_mix,Avg Mix,0.32651451181333324,0.32957224199999996,-0.9277875369937006
+ml-1m,lgn,64,Age,NDCG,ndcg@20,50,avg_data_mix,Avg Mix,0.3218703335733334,0.32156236600000004,0.0957722687403492
+ml-1m,lgn,64,Age,NDCG,ndcg@20,56,avg_data_mix,Avg Mix,0.2718646084,0.272563786,-0.2565188905909861
