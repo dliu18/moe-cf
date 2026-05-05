@@ -1,0 +1,8 @@
+{
+  "pairs": [
+    {"dataset": "ml-1m", "source_group": "45"},
+    {"dataset": "ml-1m", "source_group": "56"},
+    {"dataset": "lastfm-asia", "source_group": "0"},
+    {"dataset": "lastfm-asia", "source_group": "17"}
+  ]
+}
