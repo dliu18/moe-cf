@@ -84,6 +84,15 @@ def parse_args() -> argparse.Namespace:
         default=Path("mixing/figures/similarity_cache.json"),
         help="JSON cache for computed group-pair similarities.",
     )
+    parser.add_argument(
+        "--two-column",
+        action="store_true",
+        help=(
+            "Generate two-column-friendly outputs: "
+            "(1) scatter-only panels with dataset rows, "
+            "(2) separate target-level augmentation-ratio bar chart."
+        ),
+    )
     parser.add_argument("--debug", action="store_true")
     return parser.parse_args()
 
@@ -418,110 +427,193 @@ def main() -> None:
 
     n = len(panel_data)
 
-    # Figure A: grouped bars
-    fig_bar, axes_bar = plt.subplots(1, n + 1, figsize=(4.2 * n + 3.2, 4.3), squeeze=False)
-    axes_bar = axes_bar[0]
+    if args.two_column:
+        # Figure A (two-column mode): scatter only, with dataset rows.
+        dataset_order = []
+        seen = set()
+        for p in panel_data:
+            ds = p["dataset"]
+            if ds not in seen:
+                dataset_order.append(ds)
+                seen.add(ds)
+        by_dataset: dict[str, list[dict]] = {ds: [] for ds in dataset_order}
+        for p in panel_data:
+            by_dataset[p["dataset"]].append(p)
 
-    for i, panel in enumerate(panel_data):
-        ax = axes_bar[i]
-        groups = panel["aug_groups"]
-        sim = panel["similarities"]
-        alpha = panel["alpha_mix"]
-
-        x = np.arange(len(groups), dtype=float)
-        w = 0.38
-        ax.bar(x - w / 2, sim, width=w, color="#111111", label="Similarity", alpha=0.95)
-        ax.bar(
-            x + w / 2,
-            alpha,
-            width=w,
-            color="#d95f02",
-            label=f"Avg Top-{top_k} Mix Alpha",
-            alpha=0.90,
+        n_rows = len(dataset_order)
+        n_cols = max(len(v) for v in by_dataset.values())
+        fig_sc, axes_sc = plt.subplots(
+            n_rows,
+            n_cols,
+            figsize=(4.3 * n_cols, 3.6 * n_rows),
+            squeeze=False,
         )
+        for r, ds in enumerate(dataset_order):
+            row_panels = by_dataset[ds]
+            for c in range(n_cols):
+                ax = axes_sc[r, c]
+                if c >= len(row_panels):
+                    ax.axis("off")
+                    continue
+                panel = row_panels[c]
+                sim = panel["similarities"]
+                alpha = panel["alpha_mix"]
+                groups = panel["aug_groups"]
 
-        title_ds = DATASET_DISPLAY.get(panel["dataset"], panel["dataset"])
-        ax.set_title(f"{title_ds}\nTarget Group: {panel['source_group']}")
-        ax.set_xticks(x)
-        ax.set_xticklabels(groups)
-        ax.set_xlabel("Augmentation Group")
-        ax.set_ylabel("Value")
-        ax.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
+                ax.scatter(sim, alpha, color="black", s=36)
+                title_ds = DATASET_DISPLAY.get(panel["dataset"], panel["dataset"])
+                ax.set_title(f"{title_ds}\nTarget Group: {panel['source_group']}")
+                ax.set_xlabel("Normalized Discrepancy")
+                ax.set_ylabel("Mixing Ratio")
+                ax.grid(axis="both", linestyle="--", alpha=0.35, linewidth=0.7)
+                for spine in ["top", "right"]:
+                    ax.spines[spine].set_visible(False)
+
+                for x, y, g in zip(sim, alpha, groups):
+                    ax.annotate(
+                        str(g),
+                        xy=(x, y),
+                        xytext=(6, 0),
+                        textcoords="offset points",
+                        fontsize=16,
+                        ha="left",
+                        va="center",
+                    )
+
+        fig_sc.tight_layout()
+        out_sc = (
+            out_dir
+            / f"similarity_vs_topmix_scatter__{model}__recdim_{recdim}__topk_{top_k}__two_column.pdf"
+        )
+        fig_sc.savefig(out_sc, dpi=300, bbox_inches="tight")
+        print(f"Saved figure: {out_sc}")
+
+        # Figure B (two-column mode): separate target-level alpha_aug bar chart.
+        fig_aug, ax_aug = plt.subplots(1, 1, figsize=(max(6.0, 1.1 * n), 3.6))
+        target_labels = [str(p["source_group"]) for p in panel_data]
+        alpha_vals = [float(p["alpha_aug_avg"]) for p in panel_data]
+        x_aug = np.arange(len(target_labels), dtype=float)
+        ax_aug.bar(x_aug, alpha_vals, width=0.68, color="#6b7280", alpha=0.95)
+        ax_aug.set_xticks(x_aug)
+        ax_aug.set_xticklabels(target_labels)
+        ax_aug.set_xlabel("Target Group")
+        ax_aug.set_ylabel("Augmentation Ratio")
+        ax_aug.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
         for spine in ["top", "right"]:
-            ax.spines[spine].set_visible(False)
+            ax_aug.spines[spine].set_visible(False)
 
-        if i == 0:
-            ax.legend(frameon=False)
+        fig_aug.tight_layout()
+        out_aug = (
+            out_dir
+            / f"similarity_vs_topmix_target_aug_bar__{model}__recdim_{recdim}__topk_{top_k}__two_column.pdf"
+        )
+        fig_aug.savefig(out_aug, dpi=300, bbox_inches="tight")
+        print(f"Saved figure: {out_aug}")
+    else:
+        # Figure A: grouped bars
+        fig_bar, axes_bar = plt.subplots(1, n + 1, figsize=(4.2 * n + 3.2, 4.3), squeeze=False)
+        axes_bar = axes_bar[0]
 
-    # Rightmost subplot: alpha_aug by target group.
-    ax_aug = axes_bar[-1]
-    target_labels = [str(p["source_group"]) for p in panel_data]
-    alpha_vals = [float(p["alpha_aug_avg"]) for p in panel_data]
-    x_aug = np.arange(len(target_labels), dtype=float)
-    ax_aug.bar(x_aug, alpha_vals, width=0.68, color="#6b7280", alpha=0.95)
-    ax_aug.set_xticks(x_aug)
-    ax_aug.set_xticklabels(target_labels)
-    ax_aug.set_xlabel("Target Group")
-    ax_aug.set_ylabel("Augmentation Ratio")
-    ax_aug.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
-    for spine in ["top", "right"]:
-        ax_aug.spines[spine].set_visible(False)
+        for i, panel in enumerate(panel_data):
+            ax = axes_bar[i]
+            groups = panel["aug_groups"]
+            sim = panel["similarities"]
+            alpha = panel["alpha_mix"]
 
-    fig_bar.tight_layout()
-    out_bar = out_dir / f"similarity_vs_topmix_grouped_bars__{model}__recdim_{recdim}__topk_{top_k}.pdf"
-    fig_bar.savefig(out_bar, dpi=300, bbox_inches="tight")
-    print(f"Saved figure: {out_bar}")
-
-    # Figure B: scatter
-    fig_sc, axes_sc = plt.subplots(1, n + 1, figsize=(4.2 * n + 3.2, 4.3), squeeze=False)
-    axes_sc = axes_sc[0]
-
-    for i, panel in enumerate(panel_data):
-        ax = axes_sc[i]
-        sim = panel["similarities"]
-        alpha = panel["alpha_mix"]
-        groups = panel["aug_groups"]
-
-        ax.scatter(sim, alpha, color="black", s=36)
-
-        title_ds = DATASET_DISPLAY.get(panel["dataset"], panel["dataset"])
-        ax.set_title(f"{title_ds}\nTarget Group: {panel['source_group']}")
-        ax.set_xlabel("Normalized Discrepancy")
-        ax.set_ylabel("Mixing Ratio")
-        ax.grid(axis="both", linestyle="--", alpha=0.35, linewidth=0.7)
-        for spine in ["top", "right"]:
-            ax.spines[spine].set_visible(False)
-
-        # light text labels for each augmentation group
-        for x, y, g in zip(sim, alpha, groups):
-            ax.annotate(
-                str(g),
-                xy=(x, y),
-                xytext=(6, 0),
-                textcoords="offset points",
-                fontsize=16,
-                ha="left",
-                va="center",
+            x = np.arange(len(groups), dtype=float)
+            w = 0.38
+            ax.bar(x - w / 2, sim, width=w, color="#111111", label="Similarity", alpha=0.95)
+            ax.bar(
+                x + w / 2,
+                alpha,
+                width=w,
+                color="#d95f02",
+                label=f"Avg Top-{top_k} Mix Alpha",
+                alpha=0.90,
             )
 
-    # Rightmost subplot: alpha_aug by target group.
-    ax_aug2 = axes_sc[-1]
-    target_labels = [str(p["source_group"]) for p in panel_data]
-    alpha_vals = [float(p["alpha_aug_avg"]) for p in panel_data]
-    x_aug = np.arange(len(target_labels), dtype=float)
-    ax_aug2.bar(x_aug, alpha_vals, width=0.68, color="#6b7280", alpha=0.95)
-    ax_aug2.set_xticks(x_aug)
-    ax_aug2.set_xticklabels(target_labels)
-    ax_aug2.set_xlabel("Target Group")
-    ax_aug2.set_ylabel("Augmentation Ratio")
-    ax_aug2.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
-    for spine in ["top", "right"]:
-        ax_aug2.spines[spine].set_visible(False)
+            title_ds = DATASET_DISPLAY.get(panel["dataset"], panel["dataset"])
+            ax.set_title(f"{title_ds}\nTarget Group: {panel['source_group']}")
+            ax.set_xticks(x)
+            ax.set_xticklabels(groups)
+            ax.set_xlabel("Augmentation Group")
+            ax.set_ylabel("Value")
+            ax.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
+            for spine in ["top", "right"]:
+                ax.spines[spine].set_visible(False)
 
-    fig_sc.tight_layout()
-    out_sc = out_dir / f"similarity_vs_topmix_scatter__{model}__recdim_{recdim}__topk_{top_k}.pdf"
-    fig_sc.savefig(out_sc, dpi=300, bbox_inches="tight")
-    print(f"Saved figure: {out_sc}")
+            if i == 0:
+                ax.legend(frameon=False)
+
+        # Rightmost subplot: alpha_aug by target group.
+        ax_aug = axes_bar[-1]
+        target_labels = [str(p["source_group"]) for p in panel_data]
+        alpha_vals = [float(p["alpha_aug_avg"]) for p in panel_data]
+        x_aug = np.arange(len(target_labels), dtype=float)
+        ax_aug.bar(x_aug, alpha_vals, width=0.68, color="#6b7280", alpha=0.95)
+        ax_aug.set_xticks(x_aug)
+        ax_aug.set_xticklabels(target_labels)
+        ax_aug.set_xlabel("Target Group")
+        ax_aug.set_ylabel("Augmentation Ratio")
+        ax_aug.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
+        for spine in ["top", "right"]:
+            ax_aug.spines[spine].set_visible(False)
+
+        fig_bar.tight_layout()
+        out_bar = out_dir / f"similarity_vs_topmix_grouped_bars__{model}__recdim_{recdim}__topk_{top_k}.pdf"
+        fig_bar.savefig(out_bar, dpi=300, bbox_inches="tight")
+        print(f"Saved figure: {out_bar}")
+
+        # Figure B: scatter
+        fig_sc, axes_sc = plt.subplots(1, n + 1, figsize=(4.2 * n + 3.2, 4.3), squeeze=False)
+        axes_sc = axes_sc[0]
+
+        for i, panel in enumerate(panel_data):
+            ax = axes_sc[i]
+            sim = panel["similarities"]
+            alpha = panel["alpha_mix"]
+            groups = panel["aug_groups"]
+
+            ax.scatter(sim, alpha, color="black", s=36)
+
+            title_ds = DATASET_DISPLAY.get(panel["dataset"], panel["dataset"])
+            ax.set_title(f"{title_ds}\nTarget Group: {panel['source_group']}")
+            ax.set_xlabel("Normalized Discrepancy")
+            ax.set_ylabel("Mixing Ratio")
+            ax.grid(axis="both", linestyle="--", alpha=0.35, linewidth=0.7)
+            for spine in ["top", "right"]:
+                ax.spines[spine].set_visible(False)
+
+            # light text labels for each augmentation group
+            for x, y, g in zip(sim, alpha, groups):
+                ax.annotate(
+                    str(g),
+                    xy=(x, y),
+                    xytext=(6, 0),
+                    textcoords="offset points",
+                    fontsize=16,
+                    ha="left",
+                    va="center",
+                )
+
+        # Rightmost subplot: alpha_aug by target group.
+        ax_aug2 = axes_sc[-1]
+        target_labels = [str(p["source_group"]) for p in panel_data]
+        alpha_vals = [float(p["alpha_aug_avg"]) for p in panel_data]
+        x_aug = np.arange(len(target_labels), dtype=float)
+        ax_aug2.bar(x_aug, alpha_vals, width=0.68, color="#6b7280", alpha=0.95)
+        ax_aug2.set_xticks(x_aug)
+        ax_aug2.set_xticklabels(target_labels)
+        ax_aug2.set_xlabel("Target Group")
+        ax_aug2.set_ylabel("Augmentation Ratio")
+        ax_aug2.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
+        for spine in ["top", "right"]:
+            ax_aug2.spines[spine].set_visible(False)
+
+        fig_sc.tight_layout()
+        out_sc = out_dir / f"similarity_vs_topmix_scatter__{model}__recdim_{recdim}__topk_{top_k}.pdf"
+        fig_sc.savefig(out_sc, dpi=300, bbox_inches="tight")
+        print(f"Saved figure: {out_sc}")
 
     cache_path.write_text(json.dumps(similarity_cache, indent=2, sort_keys=True))
     print(f"Saved similarity cache: {cache_path}")
