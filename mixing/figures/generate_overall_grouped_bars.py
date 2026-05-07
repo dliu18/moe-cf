@@ -48,6 +48,8 @@ BAR_COLORS = {
     "stratified": "#7570b3",
     "top_data_mix": "#d95f02",
 }
+SIGNIFICANCE_ALPHA = 0.05
+BOOTSTRAP_ITERS = 3000
 
 
 def _parse_args() -> argparse.Namespace:
@@ -112,6 +114,81 @@ def _source_order(frames: List[pd.DataFrame]) -> List[str]:
     return sorted(seen, key=_maybe_numeric)
 
 
+def _metric_col_for_dataset(metric: str, dataset: str) -> str:
+    k = DATASET_K[dataset]
+    return f"{metric}@{k}"
+
+
+def _load_trial_samples(
+    repo_root: Path,
+    dataset: str,
+    model: str,
+    recdim: str,
+    metric_col: str,
+) -> dict[str, dict[str, np.ndarray]]:
+    test_dir = repo_root / "mixing" / "test" / dataset / model / str(recdim)
+    files = sorted(test_dir.glob("test_eval__feature-*__source-*.csv"))
+    if not files:
+        raise FileNotFoundError(f"No test eval files found in {test_dir}")
+
+    out: dict[str, dict[str, list[float]]] = {}
+    for fp in files:
+        df = pd.read_csv(fp)
+        if metric_col not in df.columns:
+            continue
+        if "source_label" not in df.columns:
+            src = fp.stem.split("__source-")[-1]
+            df["source_label"] = src
+        df["source_label"] = df["source_label"].astype(str)
+        vals = pd.to_numeric(df[metric_col], errors="coerce")
+        tt = df["trial_type"].astype(str)
+        for src in df["source_label"].unique().tolist():
+            m = df["source_label"] == src
+            out.setdefault(src, {})
+            for key, mask in {
+                "proportional": tt == "proportional",
+                "no_augmentation": tt == "no_augmentation",
+                "stratified": tt == "stratified",
+                "top_data_mix": tt == "top_1",
+                "avg_data_mix": tt.str.startswith("top_"),
+            }.items():
+                arr = vals[m & mask].dropna().astype(float).to_numpy()
+                out[src].setdefault(key, [])
+                if arr.size:
+                    out[src][key].extend(arr.tolist())
+
+    return {
+        src: {k: np.asarray(v, dtype=float) for k, v in kv.items()}
+        for src, kv in out.items()
+    }
+
+
+def _significant_vs_proportional(
+    prop_vals: np.ndarray,
+    comp_vals: np.ndarray,
+    *,
+    alpha: float = SIGNIFICANCE_ALPHA,
+    iters: int = BOOTSTRAP_ITERS,
+    seed: int = 42,
+) -> bool:
+    prop = np.asarray(prop_vals, dtype=float)
+    comp = np.asarray(comp_vals, dtype=float)
+    prop = prop[np.isfinite(prop)]
+    comp = comp[np.isfinite(comp)]
+    if len(prop) < 2 or len(comp) < 2:
+        return False
+
+    rng = np.random.default_rng(seed)
+    diffs = np.empty(iters, dtype=float)
+    for i in range(iters):
+        p = rng.choice(prop, size=len(prop), replace=True).mean()
+        c = rng.choice(comp, size=len(comp), replace=True).mean()
+        diffs[i] = c - p
+    lo = float(np.percentile(diffs, 100.0 * (alpha / 2.0)))
+    hi = float(np.percentile(diffs, 100.0 * (1.0 - alpha / 2.0)))
+    return lo > 0.0 or hi < 0.0
+
+
 def main() -> None:
     args = _parse_args()
     recdim = str(args.recdim)
@@ -126,11 +203,16 @@ def main() -> None:
     metric_csv = _metric_csv_name(metric)
 
     dfs: Dict[tuple[str, str], pd.DataFrame] = {}
+    trial_cache: Dict[tuple[str, str], dict[str, dict[str, np.ndarray]]] = {}
     dataset_source_counts: Dict[str, int] = {}
     for model in MODEL_ORDER:
         for dataset in DATASET_ORDER:
             df = _load_metric_df(data_root, dataset, model, recdim, metric_csv)
             dfs[(model, dataset)] = df
+            metric_col = _metric_col_for_dataset(metric, dataset)
+            trial_cache[(model, dataset)] = _load_trial_samples(
+                repo_root, dataset, model, recdim, metric_col
+            )
             n_src = len(_source_order([df]))
             dataset_source_counts[dataset] = max(dataset_source_counts.get(dataset, 0), n_src)
             if debug:
@@ -145,7 +227,7 @@ def main() -> None:
 
     width_ratios = [max(1, dataset_source_counts.get(ds, 1)) for ds in DATASET_ORDER]
     fig_width = 12.5
-    fig_height = 7.2
+    fig_height = 6.0
     if debug:
         print(f"[DEBUG] Column width ratios by dataset: {dict(zip(DATASET_ORDER, width_ratios))}")
 
@@ -231,21 +313,27 @@ def main() -> None:
                         src = sources[i]
                         y = rect.get_height()
                         pct = pct_lookup.get(src, np.nan)
+                        sig = False
+                        src_trials = trial_cache[(model, dataset)].get(src, {})
+                        sig = _significant_vs_proportional(
+                            src_trials.get("proportional", np.asarray([])),
+                            src_trials.get("top_data_mix", np.asarray([])),
+                        )
                         if np.isfinite(y) and np.isfinite(pct):
                             ax.text(
                                 rect.get_x() + rect.get_width() / 2.0,
                                 y + max(0.003, 0.02 * span),
-                                f"{pct:+.1f}%",
+                                f"{pct:+.1f}%{'*' if sig else ''}",
                                 ha="center",
                                 va="bottom",
                                 fontsize=12,
                                 rotation=0,
                             )
 
-            ax.set_title(f"{DATASET_DISPLAY[dataset]} {MODEL_DISPLAY[model]}", fontweight="bold")
+            ax.set_title(f"{DATASET_DISPLAY[dataset]} {MODEL_DISPLAY[model]}")
             ax.set_xticks(x)
             ax.set_xticklabels(sources)
-            ax.set_xlabel("Source Group")
+            ax.set_xlabel("Target Group")
             ylabel_base = "NDCG" if metric == "ndcg" else metric.title()
             ylabel = f"{ylabel_base}@{DATASET_K[dataset]}"
             ax.set_ylabel(ylabel)

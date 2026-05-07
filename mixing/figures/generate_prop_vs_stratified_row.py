@@ -196,17 +196,17 @@ def main() -> None:
     plt.rcParams.update(
         {
             "font.family": "serif",
-            "font.size": 12,
-            "axes.titlesize": 13,
-            "axes.labelsize": 12,
-            "xtick.labelsize": 11,
-            "ytick.labelsize": 11,
-            "legend.fontsize": 12,
+            "font.size": 14,
+            "axes.titlesize": 15,
+            "axes.labelsize": 14,
+            "xtick.labelsize": 13,
+            "ytick.labelsize": 13,
+            "legend.fontsize": 14,
         }
     )
 
     n = len(pairs)
-    fig, axes = plt.subplots(1, n, figsize=(4.2 * n, 4.6), squeeze=False)
+    fig, axes = plt.subplots(1, n, figsize=(4.2 * n, 3.5), squeeze=False)
     axes = axes[0]
 
     for i, pair in enumerate(pairs):
@@ -284,7 +284,7 @@ def main() -> None:
             color="black",
             marker="o",
             linewidth=1.8,
-            markersize=4.5,
+            markersize=3.0,
             zorder=2,
         )
         try:
@@ -296,11 +296,11 @@ def main() -> None:
         ax.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
 
         dataset_title = DATASET_DISPLAY.get(dataset, dataset)
-        ax.set_title(f"{dataset_title}\nSource Group: {source_group}", fontweight="bold")
+        ax.set_title(f"{dataset_title}\nTarget Group: {source_group}")
 
         ax.set_xlabel("Embedding Dimension")
         metric_label = _metric_label(metric_col)
-        ax.set_ylabel(f"{metric_label} $\\Delta$% Vs. Proportional")
+        ax.set_ylabel(f"{metric_label} $\\Delta$%")
 
         # show only actual tested recdims as ticks
         xticks = sorted(cmp_df["recdim"].astype(float).unique().tolist())

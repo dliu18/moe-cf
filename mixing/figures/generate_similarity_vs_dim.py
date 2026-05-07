@@ -239,12 +239,12 @@ def main() -> None:
     plt.rcParams.update(
         {
             "font.family": "serif",
-            "font.size": 12,
-            "axes.titlesize": 13,
-            "axes.labelsize": 12,
-            "xtick.labelsize": 11,
-            "ytick.labelsize": 11,
-            "legend.fontsize": 12,
+            "font.size": 14,
+            "axes.titlesize": 15,
+            "axes.labelsize": 14,
+            "xtick.labelsize": 13,
+            "ytick.labelsize": 13,
+            "legend.fontsize": 14,
         }
     )
 
@@ -283,7 +283,14 @@ def main() -> None:
             v, s = _top_svd_v_s(grp_mat, max_rank=256)
             group_svd[g] = (v, s)
             if args.debug:
-                print(f"[DEBUG] group={g}: n_users={len(users)}, svd_rank={len(s)}")
+                if hasattr(grp_mat, "nnz"):
+                    n_interactions = int(grp_mat.nnz)
+                else:
+                    n_interactions = int(np.count_nonzero(grp_mat))
+                print(
+                    f"[DEBUG] group={g}: n_users={len(users)}, "
+                    f"n_interactions={n_interactions}, svd_rank={len(s)}"
+                )
 
         # Stable color per augmentation group across subplots.
         cmap = plt.get_cmap("tab20")
@@ -291,7 +298,7 @@ def main() -> None:
 
         for projection_mode in ["weighted", "subspace"]:
             n_cols = len(source_groups)
-            fig, axes = plt.subplots(1, n_cols, figsize=(5.0 * n_cols, 4.8), squeeze=False)
+            fig, axes = plt.subplots(1, n_cols, figsize=(5.0 * n_cols, 3.0), squeeze=False)
             axes = axes[0]
             variance_store[projection_mode][dataset] = {}
 
@@ -316,7 +323,7 @@ def main() -> None:
                         ys_arr,
                         marker="o",
                         linewidth=1.8,
-                        markersize=4.2,
+                        markersize=2.8,
                         color=color_map[aug],
                         label=aug,
                     )
@@ -330,10 +337,19 @@ def main() -> None:
                 ax.set_xticklabels([str(d) for d in XTICK_DIMS])
                 ax.set_xlabel("Embedding Dimension")
                 ax.set_ylabel("Normalized Group Distance")
-                ax.set_title(f"Source Group: {source}", fontweight="bold")
+                ax.set_title(f"Target Group: {source}")
                 ax.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
                 for spine in ["top", "right"]:
                     ax.spines[spine].set_visible(False)
+                ax.legend(
+                    loc="center left",
+                    bbox_to_anchor=(1.02, 0.5),
+                    frameon=False,
+                    title="Augmentation Group",
+                    ncol=1,
+                    fontsize=11,
+                    title_fontsize=11,
+                )
 
                 if aug_curves:
                     variance_store[projection_mode][dataset][source] = np.nanvar(
@@ -344,28 +360,7 @@ def main() -> None:
                         len(SWEEP_DIMS), np.nan, dtype=np.float64
                     )
 
-            # Shared legend at top, labels in ascending group order.
-            legend_labels = group_labels
-            handles = [
-                plt.Line2D(
-                    [0],
-                    [0],
-                    color=color_map[g],
-                    marker="o",
-                    linewidth=1.8,
-                    markersize=4.2,
-                )
-                for g in legend_labels
-            ]
-            fig.legend(
-                handles,
-                legend_labels,
-                loc="upper center",
-                ncol=min(8, max(1, len(legend_labels))),
-                frameon=False,
-                bbox_to_anchor=(0.5, 0.995),
-            )
-            fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.90])
+            fig.tight_layout()
 
             suffix = "vsvt" if projection_mode == "weighted" else "vvt"
             out_file = out_dir / f"intergroup_similarity_vs_dim__{dataset}__{suffix}.pdf"
@@ -375,7 +370,7 @@ def main() -> None:
     # Additional output: variance among augmentation-group distances per source group.
     for projection_mode in ["weighted", "subspace"]:
         n_cols = len(datasets)
-        fig_var, axes_var = plt.subplots(1, n_cols, figsize=(5.6 * n_cols, 4.8), squeeze=False)
+        fig_var, axes_var = plt.subplots(1, n_cols, figsize=(5.6 * n_cols, 3.0), squeeze=False)
         axes_var = axes_var[0]
 
         for idx, dataset in enumerate(datasets):
@@ -393,7 +388,7 @@ def main() -> None:
                     ys,
                     marker="o",
                     linewidth=1.8,
-                    markersize=4.2,
+                    markersize=2.8,
                     color=source_color[src],
                     label=src,
                 )
@@ -405,16 +400,19 @@ def main() -> None:
             ax.set_xticks(XTICK_DIMS)
             ax.set_xticklabels([str(d) for d in XTICK_DIMS])
             ax.set_xlabel("Embedding Dimension")
-            ax.set_ylabel("Variance of Group Distances")
-            ax.set_title(DATASET_DISPLAY.get(dataset, dataset), fontweight="bold")
+            ax.set_ylabel("Item Subspace Het.")
+            ax.set_title(DATASET_DISPLAY.get(dataset, dataset))
             ax.grid(axis="y", linestyle="--", alpha=0.35, linewidth=0.7)
             for spine in ["top", "right"]:
                 ax.spines[spine].set_visible(False)
             ax.legend(
-                loc="upper right",
+                loc="center left",
+                bbox_to_anchor=(1.02, 0.5),
                 frameon=False,
-                title="Source Group",
+                title="Target Group",
                 ncol=1,
+                fontsize=11,
+                title_fontsize=11,
             )
 
         fig_var.tight_layout()
