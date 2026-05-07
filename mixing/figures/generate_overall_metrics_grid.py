@@ -65,6 +65,11 @@ def _parse_args() -> argparse.Namespace:
         required=True,
         help="Dataset name or comma-separated dataset names (e.g., ml-1m,lastfm-asia).",
     )
+    parser.add_argument(
+        "--two-column",
+        action="store_true",
+        help="Use a narrower, slightly taller figure size for two-column paper layouts.",
+    )
     parser.add_argument("--debug", action="store_true", help="Print debug statements.")
     return parser.parse_args()
 
@@ -217,8 +222,12 @@ def main() -> None:
         dataset_source_counts[dataset] = max(1, len(_source_order(metric_frames)))
 
     width_ratios = [max(1, dataset_source_counts[d]) for d in datasets]
-    fig_width = 14.0
-    fig_height = 2.9 * len(datasets)
+    if args.two_column:
+        fig_width = 9.8
+        fig_height = 3.2 * len(datasets)
+    else:
+        fig_width = 14.0
+        fig_height = 2.9 * len(datasets)
 
     plt.rcParams.update(
         {
@@ -336,7 +345,8 @@ def main() -> None:
     fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.90])
 
     dataset_slug = "-".join(datasets)
-    out_file = out_dir / f"overall_metrics_grid__{dataset_slug}__{model}__recdim_{recdim}.pdf"
+    layout_tag = "__two_column" if args.two_column else ""
+    out_file = out_dir / f"overall_metrics_grid__{dataset_slug}__{model}__recdim_{recdim}{layout_tag}.pdf"
     fig.savefig(out_file, dpi=300, bbox_inches="tight")
     print(f"Saved figure: {out_file}")
 

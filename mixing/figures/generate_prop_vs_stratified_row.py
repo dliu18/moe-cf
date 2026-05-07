@@ -84,6 +84,11 @@ def parse_args() -> argparse.Namespace:
         default=42,
         help="Random seed used for bootstrap CI.",
     )
+    parser.add_argument(
+        "--two-column",
+        action="store_true",
+        help="Use two-column-friendly layout: one subplot row per dataset.",
+    )
     return parser.parse_args()
 
 
@@ -205,11 +210,37 @@ def main() -> None:
         }
     )
 
-    n = len(pairs)
-    fig, axes = plt.subplots(1, n, figsize=(4.2 * n, 3.5), squeeze=False)
-    axes = axes[0]
+    if args.two_column:
+        dataset_order = []
+        seen = set()
+        for p in pairs:
+            ds = p["dataset"]
+            if ds not in seen:
+                dataset_order.append(ds)
+                seen.add(ds)
+        pairs_by_dataset = {ds: [p for p in pairs if p["dataset"] == ds] for ds in dataset_order}
+        n_rows = len(dataset_order)
+        n_cols = max(len(v) for v in pairs_by_dataset.values())
+        fig, axes = plt.subplots(
+            n_rows,
+            n_cols,
+            figsize=(4.2 * n_cols, 3.5 * n_rows),
+            squeeze=False,
+        )
+        pairs_for_axes = []
+        for r, ds in enumerate(dataset_order):
+            row_pairs = pairs_by_dataset[ds]
+            for c in range(n_cols):
+                if c < len(row_pairs):
+                    pairs_for_axes.append((axes[r][c], row_pairs[c]))
+                else:
+                    axes[r][c].axis("off")
+    else:
+        n = len(pairs)
+        fig, axes = plt.subplots(1, n, figsize=(4.2 * n, 3.5), squeeze=False)
+        pairs_for_axes = [(axes[0][i], pairs[i]) for i in range(n)]
 
-    for i, pair in enumerate(pairs):
+    for ax, pair in pairs_for_axes:
         dataset = pair["dataset"]
         source_group = pair["source_group"]
 
@@ -267,7 +298,6 @@ def main() -> None:
             cmp_df["pct_ci_lo"] = lo_list
             cmp_df["pct_ci_hi"] = hi_list
 
-        ax = axes[i]
         if args.ci_bands and "pct_ci_lo" in cmp_df.columns and "pct_ci_hi" in cmp_df.columns:
             ax.fill_between(
                 cmp_df["recdim"].to_numpy(dtype=float),
@@ -313,7 +343,8 @@ def main() -> None:
     fig.tight_layout()
 
     metric_slug = args.metric.strip().lower().replace("@", "at")
-    out_file = out_dir / f"prop_vs_stratified__{args.model}__{metric_slug}.pdf"
+    layout_tag = "__two_column" if args.two_column else ""
+    out_file = out_dir / f"prop_vs_stratified__{args.model}__{metric_slug}{layout_tag}.pdf"
     fig.savefig(out_file, dpi=300, bbox_inches="tight")
     print(f"Saved figure: {out_file}")
 

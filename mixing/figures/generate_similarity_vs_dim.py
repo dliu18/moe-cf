@@ -62,6 +62,11 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("mixing/figures/pdfs/similarity_vs_dim"),
     )
+    parser.add_argument(
+        "--two-column",
+        action="store_true",
+        help="Use a two-column-friendly layout (stack subplots vertically) and tag output filenames.",
+    )
     parser.add_argument("--debug", action="store_true")
     return parser.parse_args()
 
@@ -297,9 +302,16 @@ def main() -> None:
         color_map = {g: cmap(i % 20) for i, g in enumerate(group_labels)}
 
         for projection_mode in ["weighted", "subspace"]:
-            n_cols = len(source_groups)
-            fig, axes = plt.subplots(1, n_cols, figsize=(5.0 * n_cols, 3.0), squeeze=False)
-            axes = axes[0]
+            if args.two_column:
+                n_rows = len(source_groups)
+                fig, axes = plt.subplots(
+                    n_rows, 1, figsize=(5.6, 2.5 * n_rows), squeeze=False
+                )
+                axes = axes[:, 0]
+            else:
+                n_cols = len(source_groups)
+                fig, axes = plt.subplots(1, n_cols, figsize=(5.0 * n_cols, 3.0), squeeze=False)
+                axes = axes[0]
             variance_store[projection_mode][dataset] = {}
 
             for idx, source in enumerate(source_groups):
@@ -363,15 +375,23 @@ def main() -> None:
             fig.tight_layout()
 
             suffix = "vsvt" if projection_mode == "weighted" else "vvt"
-            out_file = out_dir / f"intergroup_similarity_vs_dim__{dataset}__{suffix}.pdf"
+            layout_tag = "__two_column" if args.two_column else ""
+            out_file = out_dir / f"intergroup_similarity_vs_dim__{dataset}{layout_tag}__{suffix}.pdf"
             fig.savefig(out_file, dpi=300, bbox_inches="tight")
             print(f"Saved figure: {out_file}")
 
     # Additional output: variance among augmentation-group distances per source group.
     for projection_mode in ["weighted", "subspace"]:
-        n_cols = len(datasets)
-        fig_var, axes_var = plt.subplots(1, n_cols, figsize=(5.6 * n_cols, 3.0), squeeze=False)
-        axes_var = axes_var[0]
+        if args.two_column:
+            n_rows = len(datasets)
+            fig_var, axes_var = plt.subplots(
+                n_rows, 1, figsize=(5.6, 2.7 * n_rows), squeeze=False
+            )
+            axes_var = axes_var[:, 0]
+        else:
+            n_cols = len(datasets)
+            fig_var, axes_var = plt.subplots(1, n_cols, figsize=(5.6 * n_cols, 3.0), squeeze=False)
+            axes_var = axes_var[0]
 
         for idx, dataset in enumerate(datasets):
             ax = axes_var[idx]
@@ -417,7 +437,8 @@ def main() -> None:
 
         fig_var.tight_layout()
         suffix = "vsvt" if projection_mode == "weighted" else "vvt"
-        out_var = out_dir / f"intergroup_distance_variance_vs_dim__{suffix}.pdf"
+        layout_tag = "__two_column" if args.two_column else ""
+        out_var = out_dir / f"intergroup_distance_variance_vs_dim{layout_tag}__{suffix}.pdf"
         fig_var.savefig(out_var, dpi=300, bbox_inches="tight")
         print(f"Saved figure: {out_var}")
 
